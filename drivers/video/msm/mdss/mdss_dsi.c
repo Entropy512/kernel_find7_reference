@@ -26,7 +26,12 @@
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
-
+/* OPPO 2014-02-10 yxq Added begin for Find7S */
+#include <linux/pcb_version.h>
+/* OPPO 2014-02-10 yxq Added end */
+/* OPPO 2013-11-20 yxq Add begin for compatible cmd mode and video mode */
+#define COMMAND_MODE_ENABLE
+/* OPPO 2013-11-20 yxq Add end */
 static unsigned char *mdss_dsi_base;
 
 static int mdss_dsi_regulator_init(struct platform_device *pdev)
@@ -124,11 +129,28 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 	of_node = dev->of_node;
 
 	mp->num_vreg = 0;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/02/10  Modify for Find7S */
 	for_each_child_of_node(of_node, supply_node) {
 		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
 						26))
 			++mp->num_vreg;
 	}
+#else /*CONFIG_VENDOR_EDIT*/
+	if (get_pcb_version() < HW_VERSION__20) { /* For Find7 */
+        for_each_child_of_node(of_node, supply_node) {
+            if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
+                            26))
+                ++mp->num_vreg;
+        }
+	} else { /* For Find7S */
+        for_each_child_of_node(of_node, supply_node) {
+            if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
+                            26) && strncmp(supply_node->name, "qcom,platform-supply-entry1", 27))
+                ++mp->num_vreg;
+        }
+	}
+#endif /*CONFIG_VENDOR_EDIT*/
 	if (mp->num_vreg == 0) {
 		pr_debug("%s: no vreg\n", __func__);
 		goto novreg;
@@ -148,6 +170,14 @@ static int mdss_dsi_get_dt_vreg_data(struct device *dev,
 		if (!strncmp(supply_node->name, "qcom,platform-supply-entry",
 						26)) {
 			const char *st = NULL;
+#ifdef CONFIG_VENDOR_EDIT
+            /* Xinqin.Yang@PhoneSW.Driver, 2014/02/10  Add for Find7S */
+            if (get_pcb_version() >= HW_VERSION__20) {
+                if (!strncmp(supply_node->name, "qcom,platform-supply-entry1", 27)){
+                    continue;
+                }
+            }
+#endif /*CONFIG_VENDOR_EDIT*/
 			/* vreg-name */
 			rc = of_property_read_string(supply_node,
 				"qcom,supply-name", &st);
@@ -496,11 +526,39 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, 0);
-
+#ifdef CONFIG_VENDOR_EDIT		
+#if 0
+	mdss_dsi_op_mode_config(mipi->mode, pdata);
+#endif
+//yanghai test
+#if 0
+	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x15c, 0x31);
+	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x19c, 0x100);
+	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x1a4, 0x05);
+	msleep(20);
+	mdss_dsi_op_mode_config(mipi->mode, pdata);
+	msleep(20);
+	pr_err("%s-:\n", __func__);
+//	while (1);
+	msleep(10000);
+#endif
+#if 0
+for(i=1;i<=359;i++)
+	{
+		tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0x4*i);
+		pr_err("reg 0x%x==0x%x:\n",0x04*i, tmp);
+		}
+#endif
+//yanghai test end
+#endif
 	pr_debug("%s-:\n", __func__);
 	return 0;
 }
-
+/* OPPO 2013-10-18 yxq added begin for debug */
+#ifdef VENDOR_EDIT
+void mmss_dump_j(void);
+#endif
+/* OPPO 2013-10-18 yxq added end */
 static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -534,7 +592,11 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 				mdss_dsi_set_tear_on(ctrl_pdata);
 		}
 	}
-
+/* OPPO 2013-10-18 yxq added begin for debug */
+#ifdef VENDOR_EDIT
+//mmss_dump_j();
+#endif
+/* OPPO 2013-10-18 yxq added end */
 	pr_debug("%s-:\n", __func__);
 
 	return ret;
@@ -599,8 +661,11 @@ int mdss_dsi_cont_splash_on(struct mdss_panel_data *pdata)
 	pr_debug("%s+: ctrl=%p ndx=%d\n", __func__,
 				ctrl_pdata, ctrl_pdata->ndx);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2013/12/26  Delete for panel had initialized */
 	WARN((ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT),
 		"Incorrect Ctrl state=0x%x\n", ctrl_pdata->ctrl_state);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	mdss_dsi_sw_reset(pdata);
 	mdss_dsi_host_init(mipi, pdata);
@@ -752,6 +817,12 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		rc = mdss_dsi_off(pdata);
 		break;
 	case MDSS_EVENT_CONT_SPLASH_FINISH:
+/* OPPO 2013-10-18 yxq added begin for continous splash */
+#ifdef VENDOR_EDIT
+		pr_err("%s: MDSS_EVENT_CONT_SPLASH_FINISH\n", __func__);
+		mdss_dsi_on(pdata); 
+#endif
+/* OPPO 2013-10-18 yxq added end */
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->on_cmds.link_state == DSI_LP_MODE) {
 			rc = mdss_dsi_cont_splash_on(pdata);
@@ -781,6 +852,11 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 			/* Panel is Enabled in Bootloader */
 			rc = mdss_dsi_blank(pdata);
 		}
+/* OPPO 2013-10-18 yxq added begin for continous splash */
+#ifdef VENDOR_EDIT
+		 mdss_dsi_off(pdata); 
+#endif
+/* OPPO 2013-10-18 yxq added end */
 		break;
 	case MDSS_EVENT_ENABLE_PARTIAL_UPDATE:
 		rc = mdss_dsi_ctl_partial_update(pdata);
@@ -792,6 +868,52 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	pr_debug("%s-:event=%d, rc=%d\n", __func__, event, rc);
 	return rc;
 }
+
+//yanghai modify for cmd panel patch
+#ifdef CONFIG_VENDOR_EDIT
+#define panel_id_gpio 27
+static int get_pannel_product(void)
+{
+	int rc; 
+
+			rc = gpio_request(panel_id_gpio, "disp_ID");
+		if (rc) {
+			pr_err("yanghai request ID gpio failed, rc=%d\n",
+			       rc);
+			gpio_free(panel_id_gpio);
+			return -ENODEV;
+		}
+		rc = gpio_tlmm_config(GPIO_CFG(
+				panel_id_gpio, 0,
+				GPIO_CFG_INPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+
+		if (rc) {
+			pr_err("%s: unable to ID config tlmm = 27\n",
+				__func__);
+			gpio_free(panel_id_gpio);
+			return -ENODEV;
+		}
+
+		rc = gpio_direction_input(panel_id_gpio);
+		if (rc) {
+			pr_err("set_direction for display ID GPIO failed, rc=%d\n",
+			       rc);
+			gpio_free(panel_id_gpio);
+			return -ENODEV;
+		}
+//red pin value		
+		if (gpio_is_valid(panel_id_gpio))
+			rc=gpio_get_value(panel_id_gpio);
+				pr_info("%s:pannel id==%d \n",
+						__func__,rc);
+			return rc;
+}
+
+#endif
+//yanghai modify end
 
 /**
  * mdss_dsi_find_panel_of_node(): find device node of dsi panel
@@ -814,15 +936,54 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 	int ctrl_id = -1;
 	char *panel_name;
 	struct device_node *dsi_pan_node = NULL, *mdss_node = NULL;
+/* OPPO 2013-11-05 yxq Add begin for compatible with truly panel */
+    int rc = 0;
+/* OPPO 2013-11-05 yxq Add end */
 
 	l = strlen(panel_cfg);
+#ifdef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/02/10  Add for Find7s */
+    if (get_pcb_version() >= HW_VERSION__20) {
+        l = 0;
+    }
+#endif /*CONFIG_VENDOR_EDIT*/
 	if (!l) {
 		/* no panel cfg chg, parse dt */
 		pr_debug("%s:%d: no cmd line cfg present\n",
 			 __func__, __LINE__);
+/* OPPO 2013-11-06 yxq Modify begin for compatible with truly panel */
+#ifndef VENDOR_EDIT
 		dsi_pan_node = of_parse_phandle(
 			pdev->dev.of_node,
 			"qcom,dsi-pref-prim-pan", 0);
+#else
+        if (get_pcb_version() < HW_VERSION__20) { /* For Find7 */
+            rc = get_pannel_product();
+            pr_err("%s yxq rc=%d\n", __func__, rc);
+            if (rc == 0) {
+/* OPPO 2013-11-20 yxq Modify begin for reason */
+#ifndef COMMAND_MODE_ENABLE
+                dsi_pan_node = of_parse_phandle(
+                    pdev->dev.of_node,
+                    "qcom,dsi-pref-jdi-video-pan", 0);
+#else
+                dsi_pan_node = of_parse_phandle(
+                    pdev->dev.of_node,
+                    "qcom,dsi-pref-jdi-cmd-pan", 0);
+#endif
+/* OPPO 2013-11-20 yxq Modify end */
+            } else {
+                dsi_pan_node = of_parse_phandle(
+                    pdev->dev.of_node,
+                    "qcom,dsi-pref-truly-pan", 0);
+            }
+        } else { /* For Find7S */
+            dsi_pan_node = of_parse_phandle(
+                pdev->dev.of_node,
+                "qcom,dsi-pref-find7s-jdi-pan", 0);
+        }
+#endif
+/* OPPO 2013-11-06 yxq Modify end */
 		if (!dsi_pan_node) {
 			pr_err("%s:can't find panel phandle\n",
 			       __func__);
@@ -1091,7 +1252,9 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	bool dynamic_fps;
 	const char *data;
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
-
+/* OPPO 2014-02-11 yxq add begin for Find7s */ 
+	u32 index;
+/* OPPO 2014-02-11 yxq add end */
 	mipi  = &(pinfo->mipi);
 
 	pinfo->type =
@@ -1205,7 +1368,18 @@ int dsi_panel_device_register(struct device_node *pan_node,
 		}
 		pinfo->new_fps = pinfo->mipi.frame_rate;
 	}
+/* OPPO 2014-02-11 yxq add begin for Find7S */
+	rc = of_property_read_u32(ctrl_pdev->dev.of_node,
+				  "cell-index", &index);
+	if (rc) {
+				pr_err("%s: Cell-index not specified, rc=%d\n",
+			__func__, rc);		
 
+	}
+ctrl_pdata->index=index;
+	if (index == 0)
+		{
+/* OPPO 2014-02-11 yxq add end */
 	ctrl_pdata->disp_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-enable-gpio", 0);
 
@@ -1222,6 +1396,27 @@ int dsi_panel_device_register(struct device_node *pan_node,
 		}
 	}
 
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/03/13  Add for Find7s enable display -5v */
+	if(get_pcb_version() >= HW_VERSION__20){
+		if(gpio_is_valid(46)){
+			
+			rc = gpio_tlmm_config(GPIO_CFG(
+					46, 0,
+					GPIO_CFG_OUTPUT,
+					GPIO_CFG_NO_PULL,
+					GPIO_CFG_8MA),
+					GPIO_CFG_DISABLE);
+
+			if (rc) {
+				pr_err("%s: unable to config gpio 46\n",
+					__func__);
+				gpio_free(46);	
+			}
+		}
+	}
+#endif /*VENDOR_EDIT*/
+	
 	if (pinfo->type == MIPI_CMD_PANEL) {
 		ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 						"qcom,platform-te-gpio", 0);
@@ -1230,9 +1425,13 @@ int dsi_panel_device_register(struct device_node *pan_node,
 						__func__, __LINE__);
 		}
 	}
-
+#ifndef VENDOR_EDIT
+//yanghai modify for cmd panel patch
 	if (gpio_is_valid(ctrl_pdata->disp_te_gpio) &&
 					pinfo->type == MIPI_CMD_PANEL) {
+#else
+    if (gpio_is_valid(ctrl_pdata->disp_te_gpio)) {
+#endif					
 		rc = gpio_request(ctrl_pdata->disp_te_gpio, "disp_te");
 		if (rc) {
 			pr_err("request TE gpio failed, rc=%d\n",
@@ -1261,10 +1460,62 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			gpio_free(ctrl_pdata->disp_te_gpio);
 			return -ENODEV;
 		}
-		pr_debug("%s: te_gpio=%d\n", __func__,
+//yanghai end for esd test
+	if (gpio_is_valid(28)) {
+
+		rc = gpio_tlmm_config(GPIO_CFG(
+				28, 0,
+				GPIO_CFG_INPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+
+		if (rc) {
+			pr_err("%s: unable to config esd to 28\n",
+				__func__);
+			gpio_free(28);
+			
+		}
+
+		}
+//yanghai end for esd test end
+		pr_err("%s: te_gpio=%d\n", __func__,
 					ctrl_pdata->disp_te_gpio);
 	}
 
+//yanghai add for cmd panel patch
+#ifdef CONFIG_VENDOR_EDIT
+// conifg msm gpio 28 to display ESDPIN
+		rc = gpio_request(28, "disp_esd");
+		if (rc) {
+			pr_err("yanghai request ESD gpio failed, rc=%d\n",
+			       rc);
+			gpio_free(28);
+			return -ENODEV;
+		}
+		rc = gpio_tlmm_config(GPIO_CFG(
+				28, 0,
+				GPIO_CFG_INPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+
+		if (rc) {
+			pr_err("%s: unable to ESD config tlmm = 28\n",
+				__func__);
+			gpio_free(28);
+			return -ENODEV;
+		}
+
+		rc = gpio_direction_input(28);
+		if (rc) {
+			pr_err("set_direction for ESD GPIO failed, rc=%d\n",
+			       rc);
+			gpio_free(28);
+			return -ENODEV;
+		}
+#endif
+//yanghai add end
 	ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 			 "qcom,platform-reset-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
@@ -1306,7 +1557,16 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			}
 		}
 	}
-
+/* OPPO 2014-02-21 yxq add begin for Find7S */
+		}else{
+			ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+						"qcom,platform-te-gpio", 0);
+		ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+			 "qcom,platform-reset-gpio", 0);
+		ctrl_pdata->disp_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"qcom,platform-enable-gpio", 0);
+		}
+/* OPPO 2014-02-11 yxq add end */
 	if (mdss_dsi_clk_init(ctrl_pdev, ctrl_pdata)) {
 		pr_err("%s: unable to initialize Dsi ctrl clks\n", __func__);
 		return -EPERM;

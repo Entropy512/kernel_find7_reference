@@ -592,7 +592,12 @@ int mdss_mdp_calc_phase_step(u32 src, u32 dst, u32 *out_phase)
 		return -EINVAL;
 
 	unit = 1 << PHASE_STEP_SHIFT;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scal patch */
 	*out_phase = mult_frac(unit, src, dst);
+#else /*CONFIG_VENDOR_EDIT*/
+	*out_phase = mult_frac(src, unit, dst);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	/* check if overflow is possible */
 	if (src > dst) {

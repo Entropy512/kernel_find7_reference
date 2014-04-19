@@ -589,7 +589,10 @@ static int mdss_mdp_pipe_free(struct mdss_mdp_pipe *pipe)
 	mdss_mdp_smp_free(pipe);
 	pipe->flags = 0;
 	pipe->bwc_mode = 0;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	memset(&pipe->scale, 0, sizeof(struct mdp_scale_data));
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 
@@ -751,11 +754,16 @@ static int mdss_mdp_image_setup(struct mdss_mdp_pipe *pipe,
 	ystride1 =  (pipe->src_planes.ystride[2]) |
 			(pipe->src_planes.ystride[3] << 16);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	/*
 	 * Software overfetch is used when scalar pixel extension is
 	 * not enabled
 	 */
 	if (pipe->overfetch_disable && !pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	if (pipe->overfetch_disable) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		if (pipe->overfetch_disable & OVERFETCH_DISABLE_BOTTOM) {
 			height = pipe->src.h;
 			if (!(pipe->overfetch_disable & OVERFETCH_DISABLE_TOP))
@@ -841,8 +849,11 @@ static int mdss_mdp_format_setup(struct mdss_mdp_pipe *pipe)
 
 	mdss_mdp_pipe_sspp_setup(pipe, &opmode);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	if (pipe->scale.enable_pxl_ext)
 		opmode |= (1 << 31);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC_FORMAT, src_format);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC_UNPACK_PATTERN, unpack);
@@ -875,21 +886,40 @@ int mdss_mdp_pipe_addr_setup(struct mdss_data_type *mdata,
 }
 
 static int mdss_mdp_src_addr_setup(struct mdss_mdp_pipe *pipe,
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 				   struct mdss_mdp_data *src_data)
+#else /*CONFIG_VENDOR_EDIT*/
+	               struct mdss_mdp_data *data)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	struct mdss_mdp_data data = *src_data;
+#endif /*CONFIG_VENDOR_EDIT*/
 	int ret = 0;
 
 	pr_debug("pnum=%d\n", pipe->num);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	data.bwc_enabled = pipe->bwc_mode;
 
 	ret = mdss_mdp_data_check(&data, &pipe->src_planes);
+#else /*CONFIG_VENDOR_EDIT*/
+	data->bwc_enabled = pipe->bwc_mode;
+    ret = mdss_mdp_data_check(data, &pipe->src_planes);
+#endif /*CONFIG_VENDOR_EDIT*/
 	if (ret)
 		return ret;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if (pipe->overfetch_disable && !pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	if (pipe->overfetch_disable) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		u32 x = 0, y = 0;
 
 		if (pipe->overfetch_disable & OVERFETCH_DISABLE_LEFT)
@@ -897,7 +927,12 @@ static int mdss_mdp_src_addr_setup(struct mdss_mdp_pipe *pipe,
 		if (pipe->overfetch_disable & OVERFETCH_DISABLE_TOP)
 			y = pipe->src.y;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 		mdss_mdp_data_calc_offset(&data, x, y,
+#else /*CONFIG_VENDOR_EDIT*/
+	    mdss_mdp_data_calc_offset(data, x, y,
+#endif /*CONFIG_VENDOR_EDIT*/
 			&pipe->src_planes, pipe->src_fmt);
 	}
 
@@ -905,12 +940,21 @@ static int mdss_mdp_src_addr_setup(struct mdss_mdp_pipe *pipe,
 	if (mdata->mdp_rev < MDSS_MDP_HW_REV_102 &&
 			(pipe->src_fmt->fetch_planes == MDSS_MDP_PLANE_PLANAR)
 				&& (pipe->src_fmt->element[0] == C1_B_Cb))
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 		swap(data.p[1].addr, data.p[2].addr);
 
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC0_ADDR, data.p[0].addr);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC1_ADDR, data.p[1].addr);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC2_ADDR, data.p[2].addr);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC3_ADDR, data.p[3].addr);
+#else /*CONFIG_VENDOR_EDIT*/
+	    swap(data->p[1].addr, data->p[2].addr);
+    mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC0_ADDR, data->p[0].addr);
+    mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC1_ADDR, data->p[1].addr);
+    mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC2_ADDR, data->p[2].addr);
+    mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_SRC3_ADDR, data->p[3].addr);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	return 0;
 }
@@ -943,9 +987,16 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 			     struct mdss_mdp_data *src_data)
 {
 	int ret = 0;
+#ifdef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Add for delete scale patch */
+    u32 params_changed, opmode;
+#endif /*CONFIG_VENDOR_EDIT*/
 	struct mdss_mdp_ctl *ctl;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Add for delete scale patch */
 	u32 params_changed;
 	u32 opmode = 0;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	if (!pipe) {
 		pr_err("pipe not setup properly for queue\n");
@@ -1028,6 +1079,8 @@ int mdss_mdp_pipe_is_staged(struct mdss_mdp_pipe *pipe)
 	return (pipe == pipe->mixer->stage_pipe[pipe->mixer_stage]);
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 static inline void __mdss_mdp_pipe_program_pixel_extn_helper(
 	struct mdss_mdp_pipe *pipe, u32 plane, u32 off)
 {
@@ -1077,3 +1130,4 @@ int mdss_mdp_pipe_program_pixel_extn(struct mdss_mdp_pipe *pipe)
 	__mdss_mdp_pipe_program_pixel_extn_helper(pipe, 3, 32);
 	return 0;
 }
+#endif /*CONFIG_VENDOR_EDIT*/

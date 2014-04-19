@@ -283,11 +283,16 @@ static int __mdss_mdp_overlay_setup_scaling(struct mdss_mdp_pipe *pipe)
 
 	src = pipe->src.w >> pipe->horz_deci;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if (pipe->scale.enable_pxl_ext)
 		return 0;
 	memset(&pipe->scale, 0, sizeof(struct mdp_scale_data));
 	rc = mdss_mdp_calc_phase_step(src, pipe->dst.w,
 			&pipe->scale.phase_step_x[0]);
+#else /*CONFIG_VENDOR_EDIT*/
+	rc = mdss_mdp_calc_phase_step(src, pipe->dst.w, &pipe->phase_step_x);
+#endif /*CONFIG_VENDOR_EDIT*/
 	if (rc) {
 		pr_err("Horizontal scaling calculation failed=%d! %d->%d\n",
 				rc, src, pipe->dst.w);
@@ -295,20 +300,30 @@ static int __mdss_mdp_overlay_setup_scaling(struct mdss_mdp_pipe *pipe)
 	}
 
 	src = pipe->src.h >> pipe->vert_deci;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	rc = mdss_mdp_calc_phase_step(src, pipe->dst.h,
 			&pipe->scale.phase_step_y[0]);
+#else /*CONFIG_VENDOR_EDIT*/
+	rc = mdss_mdp_calc_phase_step(src, pipe->dst.h, &pipe->phase_step_y);
+#endif /*CONFIG_VENDOR_EDIT*/
 	if (rc) {
 		pr_err("Vertical scaling calculation failed=%d! %d->%d\n",
 				rc, src, pipe->dst.h);
 		return rc;
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	pipe->scale.init_phase_x[0] = (pipe->scale.phase_step_x[0] -
 					(1 << PHASE_STEP_SHIFT)) / 2;
 	pipe->scale.init_phase_y[0] = (pipe->scale.phase_step_y[0] -
 					(1 << PHASE_STEP_SHIFT)) / 2;
+#endif /*CONFIG_VENDOR_EDIT*/
 	return 0;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 static inline void __mdss_mdp_overlay_set_chroma_sample(
 	struct mdss_mdp_pipe *pipe)
 {
@@ -331,6 +346,7 @@ static inline void __mdss_mdp_overlay_set_chroma_sample(
 	if (pipe->vert_deci)
 		pipe->chroma_sample_v = 0;
 }
+#endif /*CONFIG_VENDOR_EDIT*/
 
 static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 				       struct mdp_overlay *req,
@@ -475,9 +491,15 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	pipe->horz_deci = req->horz_deci;
 	pipe->vert_deci = req->vert_deci;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	memcpy(&pipe->scale, &req->scale, sizeof(struct mdp_scale_data));
+#endif /*CONFIG_VENDOR_EDIT*/
 	pipe->src_fmt = fmt;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	__mdss_mdp_overlay_set_chroma_sample(pipe);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	pipe->mixer_stage = req->z_order;
 	pipe->is_fg = req->is_fg;
@@ -493,8 +515,13 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		pr_debug("Unintended blend_op %d on layer with no alpha plane\n",
 			pipe->blend_op);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if (fmt->is_yuv && !(pipe->flags & MDP_SOURCE_ROTATED_90) &&
 			!pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	if (fmt->is_yuv && !(pipe->flags & MDP_SOURCE_ROTATED_90)) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		pipe->overfetch_disable = OVERFETCH_DISABLE_BOTTOM;
 
 		if (!(pipe->flags & MDSS_MDP_DUAL_PIPE) ||
@@ -504,8 +531,11 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	} else {
 		pipe->overfetch_disable = 0;
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/16  Delete for a green line lied at the right of weather screen  */
 	pipe->overfetch_disable = fmt->is_yuv &&
 			!(pipe->flags & MDP_SOURCE_ROTATED_90);
+#endif /*CONFIG_VENDOR_EDIT*/
 	pipe->bg_color = req->bg_color;
 
 	req->id = pipe->ndx;
@@ -563,7 +593,12 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		}
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if ((pipe->flags & MDP_DEINTERLACE) && !pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	if (pipe->flags & MDP_DEINTERLACE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		if (pipe->flags & MDP_SOURCE_ROTATED_90) {
 			pipe->src.x = DIV_ROUND_UP(pipe->src.x, 2);
 			pipe->src.x &= ~1;
@@ -590,11 +625,14 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		!mdp5_data->mdata->has_wfd_blk)
 		mdss_mdp_smp_release(pipe);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	/*
 	 * Clear previous SMP reservations and reserve according to the
 	 * latest configuration
 	 */
 	mdss_mdp_smp_unreserve(pipe);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	ret = mdss_mdp_smp_reserve(pipe);
 	if (ret) {

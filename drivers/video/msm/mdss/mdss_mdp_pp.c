@@ -629,7 +629,12 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 		}
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	*op |= opmode;
+#else /*CONFIG_VENDOR_EDIT*/
+	*op = opmode;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	return 0;
 }
@@ -637,15 +642,23 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 {
 	u32 scale_config = 0;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	int init_phasex = 0, init_phasey = 0;
 	int phasex_step = 0, phasey_step = 0;
+#else /*CONFIG_VENDOR_EDIT*/
+	u32 phasex_step = 0, phasey_step = 0;
+#endif /*CONFIG_VENDOR_EDIT*/
 	u32 chroma_sample;
 	u32 filter_mode;
 	struct mdss_data_type *mdata;
 	u32 src_w, src_h;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	pr_debug("pipe=%d, change pxl ext=%d\n", pipe->num,
 			pipe->scale.enable_pxl_ext);
+#endif /*CONFIG_VENDOR_EDIT*/
 	mdata = mdss_mdp_get_mdata();
 	if (mdata->mdp_rev >= MDSS_MDP_HW_REV_102 && pipe->src_fmt->is_yuv)
 		filter_mode = MDSS_MDP_SCALE_FILTER_CA;
@@ -692,8 +705,13 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 	if ((src_h != pipe->dst.h) ||
 	    (pipe->pp_res.pp_sts.sharp_sts & PP_STS_ENABLE) ||
 	    (chroma_sample == MDSS_MDP_CHROMA_420) ||
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	    (chroma_sample == MDSS_MDP_CHROMA_H1V2) ||
 	    pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	    (chroma_sample == MDSS_MDP_CHROMA_H1V2)) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		pr_debug("scale y - src_h=%d dst_h=%d\n", src_h, pipe->dst.h);
 
 		if ((src_h / MAX_DOWNSCALE_RATIO) > pipe->dst.h) {
@@ -703,8 +721,13 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 		}
 
 		scale_config |= MDSS_MDP_SCALEY_EN;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 		phasey_step = pipe->scale.phase_step_y[0];
 		init_phasey = pipe->scale.init_phase_y[0];
+#else /*CONFIG_VENDOR_EDIT*/
+	    phasey_step = pipe->phase_step_y;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
 			u32 chroma_shift = 0;
@@ -713,11 +736,21 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 			    (chroma_sample == MDSS_MDP_CHROMA_H1V2)))
 				chroma_shift = 1; /* 2x upsample chroma */
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 			if (src_h <= pipe->dst.h)
+#else /*CONFIG_VENDOR_EDIT*/
+	        if (src_h <= pipe->dst.h) {
+#endif /*CONFIG_VENDOR_EDIT*/
 				scale_config |= /* G/Y, A */
 					(filter_mode << 10) |
 					(MDSS_MDP_SCALE_FILTER_BIL << 18);
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 			else
+#else /*CONFIG_VENDOR_EDIT*/
+	        } else
+#endif /*CONFIG_VENDOR_EDIT*/
 				scale_config |= /* G/Y, A */
 					(MDSS_MDP_SCALE_FILTER_PCMN << 10) |
 					(MDSS_MDP_SCALE_FILTER_PCMN << 18);
@@ -729,8 +762,11 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 				scale_config |= /* CrCb */
 					(MDSS_MDP_SCALE_FILTER_PCMN << 14);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 			writel_relaxed(init_phasey, pipe->base +
 				MDSS_MDP_REG_VIG_QSEED2_C12_INIT_PHASEY);
+#endif /*CONFIG_VENDOR_EDIT*/
 			writel_relaxed(phasey_step >> chroma_shift, pipe->base +
 				MDSS_MDP_REG_VIG_QSEED2_C12_PHASESTEPY);
 		} else {
@@ -748,8 +784,13 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 	if ((src_w != pipe->dst.w) ||
 	    (pipe->pp_res.pp_sts.sharp_sts & PP_STS_ENABLE) ||
 	    (chroma_sample == MDSS_MDP_CHROMA_420) ||
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	    (chroma_sample == MDSS_MDP_CHROMA_H2V1) ||
 	    pipe->scale.enable_pxl_ext) {
+#else /*CONFIG_VENDOR_EDIT*/
+	    (chroma_sample == MDSS_MDP_CHROMA_H2V1)) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		pr_debug("scale x - src_w=%d dst_w=%d\n", src_w, pipe->dst.w);
 
 		if ((src_w / MAX_DOWNSCALE_RATIO) > pipe->dst.w) {
@@ -759,8 +800,13 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 		}
 
 		scale_config |= MDSS_MDP_SCALEX_EN;
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 		init_phasex = pipe->scale.init_phase_x[0];
 		phasex_step = pipe->scale.phase_step_x[0];
+#else /*CONFIG_VENDOR_EDIT*/
+	    phasex_step = pipe->phase_step_x;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
 			u32 chroma_shift = 0;
@@ -770,11 +816,21 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 			    (chroma_sample == MDSS_MDP_CHROMA_H2V1)))
 				chroma_shift = 1; /* 2x upsample chroma */
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 			if (src_w <= pipe->dst.w)
+#else /*CONFIG_VENDOR_EDIT*/
+	        if (src_w <= pipe->dst.w) {
+#endif /*CONFIG_VENDOR_EDIT*/
 				scale_config |= /* G/Y, A */
 					(filter_mode << 8) |
 					(MDSS_MDP_SCALE_FILTER_BIL << 16);
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 			else
+#else /*CONFIG_VENDOR_EDIT*/
+	        } else
+#endif /*CONFIG_VENDOR_EDIT*/
 				scale_config |= /* G/Y, A */
 					(MDSS_MDP_SCALE_FILTER_PCMN << 8) |
 					(MDSS_MDP_SCALE_FILTER_PCMN << 16);
@@ -786,8 +842,11 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 				scale_config |= /* CrCb */
 					(MDSS_MDP_SCALE_FILTER_PCMN << 12);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 			writel_relaxed(init_phasex, pipe->base +
 				MDSS_MDP_REG_VIG_QSEED2_C12_INIT_PHASEX);
+#endif /*CONFIG_VENDOR_EDIT*/
 			writel_relaxed(phasex_step >> chroma_shift, pipe->base +
 				MDSS_MDP_REG_VIG_QSEED2_C12_PHASESTEPX);
 		} else {
@@ -802,6 +861,8 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 		}
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	if (pipe->scale.enable_pxl_ext &&
 		pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
 
@@ -831,15 +892,25 @@ static int mdss_mdp_scale_setup(struct mdss_mdp_pipe *pipe)
 		   MDSS_MDP_REG_SCALE_PHASE_STEP_X);
 		writel_relaxed(phasey_step, pipe->base +
 		   MDSS_MDP_REG_SCALE_PHASE_STEP_Y);
+//#ifndef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2013/12/29  Delete for animation effect is bad */
 		writel_relaxed(init_phasex, pipe->base +
 			MDSS_MDP_REG_SCALE_INIT_PHASE_X);
 		writel_relaxed(init_phasey, pipe->base +
 			MDSS_MDP_REG_SCALE_INIT_PHASE_Y);
+//#endif /*CONFIG_VENDOR_EDIT*/
 	}
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	writel_relaxed(scale_config, pipe->base +
 	   MDSS_MDP_REG_SCALE_CONFIG);
-
+#ifdef CONFIG_VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Add for delete scale patch */
+    writel_relaxed(phasex_step, pipe->base +
+        MDSS_MDP_REG_SCALE_PHASE_STEP_X);
+    writel_relaxed(phasey_step, pipe->base +
+        MDSS_MDP_REG_SCALE_PHASE_STEP_Y);
+#endif /*CONFIG_VENDOR_EDIT*/
 	return 0;
 }
 
