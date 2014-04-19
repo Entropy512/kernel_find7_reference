@@ -45,7 +45,12 @@ struct rtac_cal_block_data {
 };
 
 void rtac_add_adm_device(u32 port_id, u32 copp_id, u32 path_id, u32 popp_id);
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 void rtac_remove_adm_device(u32 port_id);
+#else
+void rtac_remove_adm_device(u32 port_id, u32 copp_id);
+#endif /*CONFIG_VENDOR_EDIT*/
 void rtac_remove_popp_from_adm_devices(u32 popp_id);
 void rtac_add_voice(u32 cvs_handle, u32 cvp_handle, u32 rx_afe_port,
 	u32 tx_afe_port, u32 session_id);
