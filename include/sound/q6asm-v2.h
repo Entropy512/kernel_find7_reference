@@ -167,7 +167,12 @@ struct audio_client {
 	struct audio_port_data port[2];
 	wait_queue_head_t      cmd_wait;
 	wait_queue_head_t      time_wait;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	bool                   perf_mode;
+#else
+	int                    perf_mode;
+#endif /*CONFIG_VENDOR_EDIT*/
 	/* audio cache operations fptr*/
 	int (*fptr_cache_ops)(struct audio_buffer *abuff, int cache_op);
 };

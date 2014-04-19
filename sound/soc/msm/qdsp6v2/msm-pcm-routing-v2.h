@@ -137,8 +137,14 @@ enum {
  * dspst_id:  DSP audio stream ID
  * stream_type: playback or capture
  */
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 void msm_pcm_routing_reg_phy_stream(int fedai_id, bool perf_mode, int dspst_id,
 	int stream_type);
+#else
+void msm_pcm_routing_reg_phy_stream(int fedai_id, int perf_mode, int dspst_id,
+	int stream_type);
+#endif /*CONFIG_VENDOR_EDIT*/
 void msm_pcm_routing_reg_psthr_stream(int fedai_id, int dspst_id,
 		int stream_type);
 

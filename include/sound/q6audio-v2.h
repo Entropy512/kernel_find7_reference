@@ -15,6 +15,15 @@
 
 #include <mach/qdsp6v2/apr.h>
 
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit  patch */
+enum {
+	LEGACY_PCM_MODE = 0,
+	LOW_LATENCY_PCM_MODE,
+	ULTRA_LOW_LATENCY_PCM_MODE,
+};
+#endif /*CONFIG_VENDOR_EDIT*/
+
 int q6audio_get_port_index(u16 port_id);
 
 int q6audio_convert_virtual_to_portid(u16 port_id);

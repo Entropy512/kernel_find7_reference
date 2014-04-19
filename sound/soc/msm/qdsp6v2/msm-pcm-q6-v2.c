@@ -25,6 +25,10 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/control.h>
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
+#include <sound/q6audio-v2.h>
+#endif /*CONFIG_VENDOR_EDIT*/
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio_ion.h>
@@ -883,6 +887,10 @@ static __devinit int msm_pcm_probe(struct platform_device *pdev)
 	int rc;
 	int id;
 	struct msm_plat_data *pdata;
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom loatency 24bit patch */
+	const char *latency_level;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	rc = of_property_read_u32(pdev->dev.of_node,
 				"qcom,msm-pcm-dsp-id", &id);
@@ -897,12 +905,28 @@ static __devinit int msm_pcm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to allocate memory for platform data\n");
 		return -ENOMEM;
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowtacy 24bit patch */
 
 	if (of_property_read_bool(pdev->dev.of_node,
 				"qcom,msm-pcm-low-latency"))
 		pdata->perf_mode = 1;
 	else
 		pdata->perf_mode = 0;
+#else
+	if (of_property_read_bool(pdev->dev.of_node,
+				"qcom,msm-pcm-low-latency")) {
+
+		pdata->perf_mode = LOW_LATENCY_PCM_MODE;
+		rc = of_property_read_string(pdev->dev.of_node,
+			"qcom,latency-level", &latency_level);
+		if (!rc) {
+			if (!strcmp(latency_level, "ultra"))
+				pdata->perf_mode = ULTRA_LOW_LATENCY_PCM_MODE;
+		}
+	} else
+		pdata->perf_mode = LEGACY_PCM_MODE;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	dev_set_drvdata(&pdev->dev, pdata);
 

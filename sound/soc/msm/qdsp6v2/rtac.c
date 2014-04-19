@@ -391,10 +391,19 @@ void rtac_add_adm_device(u32 port_id, u32 copp_id, u32 path_id, u32 popp_id)
 	/* Check if device already added */
 	if (rtac_adm_data.num_of_dev != 0) {
 		for (; i < rtac_adm_data.num_of_dev; i++) {
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecncy 24bit patch */
 			if (rtac_adm_data.device[i].afe_port == port_id) {
 				add_popp(i, port_id, popp_id);
 				goto done;
 			}
+#else
+			if (rtac_adm_data.device[i].afe_port == port_id &&
+			    rtac_adm_data.device[i].copp == copp_id) {
+				add_popp(i, port_id, popp_id);
+				goto done;
+			}
+#endif /*CONFIG_VENDOR_EDIT*/
 			if (rtac_adm_data.device[i].num_of_popp ==
 						RTAC_MAX_ACTIVE_POPP) {
 				pr_err("%s, Max POPP!\n", __func__);
@@ -444,7 +453,12 @@ static void shift_popp(u32 copp_idx, u32 popp_idx)
 	}
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 void rtac_remove_adm_device(u32 port_id)
+#else
+void rtac_remove_adm_device(u32 port_id, u32 copp_id)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	s32 i;
 	pr_debug("%s: port_id = %d\n", __func__, port_id);
@@ -452,7 +466,13 @@ void rtac_remove_adm_device(u32 port_id)
 	mutex_lock(&rtac_adm_mutex);
 	/* look for device */
 	for (i = 0; i < rtac_adm_data.num_of_dev; i++) {
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 		if (rtac_adm_data.device[i].afe_port == port_id) {
+#else
+		if (rtac_adm_data.device[i].afe_port == port_id &&
+		    rtac_adm_data.device[i].copp == copp_id) {
+#endif /*CONFIG_VENDOR_EDIT*/
 			memset(&rtac_adm_data.device[i], 0,
 				   sizeof(rtac_adm_data.device[i]));
 			rtac_adm_data.num_of_dev--;
@@ -702,6 +722,11 @@ u32 send_adm_apr(void *buf, u32 opcode)
 	for (port_index = 0; port_index < AFE_MAX_PORTS; port_index++) {
 		if (adm_get_copp_id(port_index) == copp_id)
 			break;
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatcy 24bit patch */
+		if (adm_get_lowlatency_copp_id(port_index) == copp_id)
+			break;
+#endif /*CONFIG_VENDOR_EDIT*/
 	}
 	if (port_index >= AFE_MAX_PORTS) {
 		pr_err("%s: Could not find port index for copp = %d\n",

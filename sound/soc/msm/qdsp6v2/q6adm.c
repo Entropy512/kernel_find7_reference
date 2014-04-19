@@ -702,7 +702,13 @@ done:
 	return;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 static int send_adm_cal_block(int port_id, struct acdb_cal_block *aud_cal)
+#else
+static int send_adm_cal_block(int port_id, struct acdb_cal_block *aud_cal,
+			      int perf_mode)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	s32				result = 0;
 	struct adm_cmd_set_pp_params_v5	adm_params;
@@ -731,7 +737,17 @@ static int send_adm_cal_block(int port_id, struct acdb_cal_block *aud_cal)
 	adm_params.hdr.src_port = port_id;
 	adm_params.hdr.dest_svc = APR_SVC_ADM;
 	adm_params.hdr.dest_domain = APR_DOMAIN_ADSP;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 	adm_params.hdr.dest_port = atomic_read(&this_adm.copp_id[index]);
+#else
+	if (perf_mode == LEGACY_PCM_MODE)
+		adm_params.hdr.dest_port =
+			atomic_read(&this_adm.copp_id[index]);
+	else
+		adm_params.hdr.dest_port =
+			atomic_read(&this_adm.copp_low_latency_id[index]);
+#endif /*CONFIG_VENDOR_EDIT*/
 	adm_params.hdr.token = port_id;
 	adm_params.hdr.opcode = ADM_CMD_SET_PP_PARAMS_V5;
 	adm_params.payload_addr_lsw = aud_cal->cal_paddr;
@@ -767,7 +783,12 @@ done:
 	return result;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 static void send_adm_cal(int port_id, int path)
+#else
+static void send_adm_cal(int port_id, int path, int perf_mode)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	int			result = 0;
 	s32			acdb_path;
@@ -808,7 +829,12 @@ static void send_adm_cal(int port_id, int path)
 		}
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 	if (!send_adm_cal_block(port_id, &aud_cal))
+#else
+	if (!send_adm_cal_block(port_id, &aud_cal, perf_mode))
+#endif /*CONFIG_VENDOR_EDIT*/
 		pr_debug("%s: Audproc cal sent for port id: %#x, path %d\n",
 			__func__, port_id, acdb_path);
 	else
@@ -842,7 +868,12 @@ static void send_adm_cal(int port_id, int path)
 		}
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 	if (!send_adm_cal_block(port_id, &aud_cal))
+#else
+	if (!send_adm_cal_block(port_id, &aud_cal, perf_mode))
+#endif /*CONFIG_VENDOR_EDIT*/
 		pr_debug("%s: Audvol cal sent for port id: %#x, path %d\n",
 			__func__, port_id, acdb_path);
 	else
@@ -1047,8 +1078,14 @@ fail_cmd:
 	return ret;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			bool perf_mode, uint16_t bits_per_sample)
+#else
+int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
+			int perf_mode, uint16_t bits_per_sample)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	struct adm_cmd_device_open_v5	open;
 	int ret = 0;
@@ -1079,7 +1116,12 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		rtac_set_adm_handle(this_adm.apr);
 	}
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if (!perf_mode) {
+#else
+	if (perf_mode == LEGACY_PCM_MODE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		atomic_set(&this_adm.copp_perf_mode[index], 0);
 		send_adm_custom_topology(port_id);
 	} else {
@@ -1087,9 +1129,17 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	}
 
 	/* Create a COPP if port id are not enabled */
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if ((!perf_mode && (atomic_read(&this_adm.copp_cnt[index]) == 0)) ||
 		(perf_mode &&
 		(atomic_read(&this_adm.copp_low_latency_cnt[index]) == 0))) {
+#else
+	if ((perf_mode == LEGACY_PCM_MODE &&
+		(atomic_read(&this_adm.copp_cnt[index]) == 0)) ||
+		(perf_mode != LEGACY_PCM_MODE &&
+		(atomic_read(&this_adm.copp_low_latency_cnt[index]) == 0))) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		pr_debug("%s:opening ADM: perf_mode: %d\n", __func__,
 			perf_mode);
 		open.hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
@@ -1104,11 +1154,21 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		open.hdr.token = port_id;
 		open.hdr.opcode = ADM_CMD_DEVICE_OPEN_V5;
 		open.flags = 0x00;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 		if (perf_mode) {
 			open.flags |= ADM_ULTRA_LOW_LATENCY_DEVICE_SESSION;
 		} else {
 			open.flags |= ADM_LEGACY_DEVICE_SESSION;
 		}
+#else
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE)
+			open.flags = ADM_ULTRA_LOW_LATENCY_DEVICE_SESSION;
+		else if (perf_mode == LOW_LATENCY_PCM_MODE)
+			open.flags = ADM_LOW_LATENCY_DEVICE_SESSION;
+		else
+			open.flags = ADM_LEGACY_DEVICE_SESSION;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		open.mode_of_operation = path;
 		open.endpoint_id_1 = tmp_port;
@@ -1125,7 +1185,12 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			(open.topology_id == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY))
 				rate = 16000;
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 		if (perf_mode) {
+#else
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 			open.topology_id = NULL_COPP_TOPOLOGY;
 			rate = ULL_SUPPORTED_SAMPLE_RATE;
 			if(channel_mode > ULL_MAX_SUPPORTED_CHANNEL)
@@ -1133,7 +1198,13 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		}
 		open.dev_num_channel = channel_mode & 0x00FF;
 		open.bit_width = bits_per_sample;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 		WARN_ON(perf_mode && (rate != 48000));
+#else
+		WARN_ON(perf_mode == ULTRA_LOW_LATENCY_PCM_MODE &&
+							(rate != 48000));
+#endif /*CONFIG_VENDOR_EDIT*/
 		open.sample_rate  = rate;
 		memset(open.dev_channel_mapping, 0, 8);
 
@@ -1208,7 +1279,13 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			goto fail_cmd;
 		}
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if (perf_mode) {
+#else
+	if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+			perf_mode == LOW_LATENCY_PCM_MODE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		atomic_inc(&this_adm.copp_low_latency_cnt[index]);
 		pr_debug("%s: index: %d coppid: %d", __func__, index,
 			atomic_read(&this_adm.copp_low_latency_id[index]));
@@ -1224,8 +1301,14 @@ fail_cmd:
 	return ret;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 int adm_multi_ch_copp_open(int port_id, int path, int rate, int channel_mode,
 			int topology, bool perf_mode, uint16_t bits_per_sample)
+#else
+int adm_multi_ch_copp_open(int port_id, int path, int rate, int channel_mode,
+			int topology, int perf_mode, uint16_t bits_per_sample)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	int ret = 0;
 
@@ -1235,8 +1318,14 @@ int adm_multi_ch_copp_open(int port_id, int path, int rate, int channel_mode,
 	return ret;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 int adm_matrix_map(int session_id, int path, int num_copps,
 			unsigned int *port_id, int copp_id, bool perf_mode)
+#else
+int adm_matrix_map(int session_id, int path, int num_copps,
+			unsigned int *port_id, int copp_id, int perf_mode)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	struct adm_cmd_matrix_map_routings_v5	*route;
 	struct adm_session_map_node_v5 *node;
@@ -1275,7 +1364,13 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 	route->hdr.src_port = copp_id;
 	route->hdr.dest_svc = APR_SVC_ADM;
 	route->hdr.dest_domain = APR_DOMAIN_ADSP;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if (perf_mode) {
+#else
+	if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+			perf_mode == LOW_LATENCY_PCM_MODE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		route->hdr.dest_port =
 			atomic_read(&this_adm.copp_low_latency_id[index]);
 	} else {
@@ -1313,7 +1408,13 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 
 
 		if (tmp >= 0 && tmp < AFE_MAX_PORTS) {
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 			if (perf_mode)
+#else
+			if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+					perf_mode == LOW_LATENCY_PCM_MODE)
+#endif /*CONFIG_VENDOR_EDIT*/
 				copps_list[i] =
 				atomic_read(&this_adm.copp_low_latency_id[tmp]);
 			else
@@ -1322,9 +1423,15 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 		}
 		else
 			continue;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 		pr_debug("%s: port_id[%#x]: %d, index: %d act coppid[0x%x]\n",
 			__func__, i, port_id[i], tmp,
 			atomic_read(&this_adm.copp_id[tmp]));
+#else
+		pr_debug("%s: port_id[%#x]: %d, index: %d act coppid[0x%x]\n",
+			__func__, i, port_id[i], tmp, copps_list[i]);
+#endif /*CONFIG_VENDOR_EDIT*/
 	}
 	atomic_set(&this_adm.copp_stat[index], 0);
 
@@ -1344,6 +1451,8 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 		ret = -EINVAL;
 		goto fail_cmd;
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 	if (!perf_mode) {
 		for (i = 0; i < num_copps; i++)
 			send_adm_cal(port_id[i], path);
@@ -1363,6 +1472,31 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 			}
 		}
 	}
+#else
+	if (perf_mode != ULTRA_LOW_LATENCY_PCM_MODE) {
+		for (i = 0; i < num_copps; i++)
+			send_adm_cal(port_id[i], path, perf_mode);
+
+		for (i = 0; i < num_copps; i++) {
+			int tmp, copp_id;
+			tmp = afe_get_port_index(port_id[i]);
+			if (tmp >= 0 && tmp < AFE_MAX_PORTS) {
+				if (perf_mode == LEGACY_PCM_MODE)
+					copp_id = atomic_read(
+					&this_adm.copp_id[tmp]);
+				else
+					copp_id = atomic_read(
+					&this_adm.copp_low_latency_id[tmp]);
+				rtac_add_adm_device(port_id[i],
+						copp_id, path, session_id);
+				pr_debug("%s, copp_id: %d\n",
+							__func__, copp_id);
+			} else
+				pr_debug("%s: Invalid port index %d",
+							__func__, tmp);
+		}
+	}
+#endif /*CONFIG_VENDOR_EDIT*/
 fail_cmd:
 	kfree(matrix_map);
 	return ret;
@@ -1514,6 +1648,8 @@ fail_cmd:
 	return ret;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 int adm_get_copp_id(int port_index)
 {
 	pr_debug("%s\n", __func__);
@@ -1525,6 +1661,48 @@ int adm_get_copp_id(int port_index)
 
 	return atomic_read(&this_adm.copp_id[port_index]);
 }
+#else
+#ifdef CONFIG_RTAC
+int adm_get_copp_id(int port_index)
+{
+	int copp_id;
+	pr_debug("%s\n", __func__);
+
+	if (port_index < 0) {
+		pr_err("%s: invalid port_id = %d\n", __func__, port_index);
+		return -EINVAL;
+	}
+
+	copp_id = atomic_read(&this_adm.copp_id[port_index]);
+	if (copp_id == RESET_COPP_ID)
+		copp_id = atomic_read(
+			&this_adm.copp_low_latency_id[port_index]);
+	return copp_id;
+}
+
+int adm_get_lowlatency_copp_id(int port_index)
+{
+	pr_debug("%s\n", __func__);
+
+	if (port_index < 0) {
+		pr_err("%s: invalid port_id = %d\n", __func__, port_index);
+		return -EINVAL;
+	}
+
+	return atomic_read(&this_adm.copp_low_latency_id[port_index]);
+}
+#else
+int adm_get_copp_id(int port_index)
+{
+	return -EINVAL;
+}
+
+int adm_get_lowlatency_copp_id(int port_index)
+{
+	return -EINVAL;
+}
+#endif /* #ifdef CONFIG_RTAC */
+#endif /*CONFIG_VENDOR_EDIT*/
 
 void adm_ec_ref_rx_id(int port_id)
 {
@@ -1532,12 +1710,21 @@ void adm_ec_ref_rx_id(int port_id)
 	pr_debug("%s ec_ref_rx:%d", __func__, this_adm.ec_ref_rx);
 }
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bot patch */
 int adm_close(int port_id, bool perf_mode)
+#else
+int adm_close(int port_id, int perf_mode)
+#endif /*CONFIG_VENDOR_EDIT*/
 {
 	struct apr_hdr close;
 
 	int ret = 0;
 	int index = 0;
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
+	int copp_id = RESET_COPP_ID;
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
 
@@ -1548,7 +1735,13 @@ int adm_close(int port_id, bool perf_mode)
 	pr_debug("%s port_id=%#x index %d perf_mode: %d\n", __func__, port_id,
 		index, perf_mode);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if (perf_mode) {
+#else
+	if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+				perf_mode == LOW_LATENCY_PCM_MODE) {
+#endif /*CONFIG_VENDOR_EDIT*/
 		if (!(atomic_read(&this_adm.copp_low_latency_cnt[index]))) {
 			pr_err("%s: copp count for port[%#x]is 0\n", __func__,
 				port_id);
@@ -1563,9 +1756,17 @@ int adm_close(int port_id, bool perf_mode)
 		}
 		atomic_dec(&this_adm.copp_cnt[index]);
 	}
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 	if ((!perf_mode && !(atomic_read(&this_adm.copp_cnt[index]))) ||
 		(perf_mode &&
 		!(atomic_read(&this_adm.copp_low_latency_cnt[index])))) {
+#else
+	if ((perf_mode == LEGACY_PCM_MODE &&
+		!(atomic_read(&this_adm.copp_cnt[index]))) ||
+		((perf_mode != LEGACY_PCM_MODE) &&
+		!(atomic_read(&this_adm.copp_low_latency_cnt[index])))) {
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		pr_debug("%s:Closing ADM: perf_mode: %d\n", __func__,
 				perf_mode);
@@ -1577,7 +1778,13 @@ int adm_close(int port_id, bool perf_mode)
 		close.src_port = port_id;
 		close.dest_svc = APR_SVC_ADM;
 		close.dest_domain = APR_DOMAIN_ADSP;
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatecny 24bit patch */
 		if (perf_mode)
+#else
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+				perf_mode == LOW_LATENCY_PCM_MODE)
+#endif /*CONFIG_VENDOR_EDIT*/
 			close.dest_port =
 			     atomic_read(&this_adm.copp_low_latency_id[index]);
 		else
@@ -1587,6 +1794,8 @@ int adm_close(int port_id, bool perf_mode)
 
 		atomic_set(&this_adm.copp_stat[index], 0);
 
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 		if (perf_mode) {
 			pr_debug("%s:coppid %d portid=%#x index=%d coppcnt=%d\n",
 			    __func__,
@@ -1604,6 +1813,29 @@ int adm_close(int port_id, bool perf_mode)
 			atomic_set(&this_adm.copp_id[index],
 				RESET_COPP_ID);
 		}
+#else
+		if (perf_mode) {
+			copp_id = atomic_read(
+				&this_adm.copp_low_latency_id[index]);
+			pr_debug("%s:coppid %d portid=%#x index=%d coppcnt=%d\n",
+				__func__,
+				copp_id,
+				port_id, index,
+				atomic_read(
+					&this_adm.copp_low_latency_cnt[index]));
+			atomic_set(&this_adm.copp_low_latency_id[index],
+				RESET_COPP_ID);
+		} else {
+			copp_id = atomic_read(&this_adm.copp_id[index]);
+			pr_debug("%s:coppid %d portid=%#x index=%d coppcnt=%d\n",
+				__func__,
+				copp_id,
+				port_id, index,
+				atomic_read(&this_adm.copp_cnt[index]));
+			atomic_set(&this_adm.copp_id[index],
+				RESET_COPP_ID);
+		}
+#endif /*CONFIG_VENDOR_EDIT*/
 
 		ret = apr_send_pkt(this_adm.apr, (uint32_t *)&close);
 		if (ret < 0) {
@@ -1623,10 +1855,17 @@ int adm_close(int port_id, bool perf_mode)
 		}
 	}
 
-	if (!perf_mode) {
+#ifndef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qcoom lowlatency 24bit patch */
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+				perf_mode == LOW_LATENCY_PCM_MODE) {
 		pr_debug("%s: remove adm device from rtac\n", __func__);
 		rtac_remove_adm_device(port_id);
 	}
+#else
+	pr_debug("%s: remove adm device from rtac\n", __func__);
+	rtac_remove_adm_device(port_id, copp_id);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 fail_cmd:
 	return ret;
