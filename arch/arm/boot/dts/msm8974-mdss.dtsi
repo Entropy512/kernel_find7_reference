@@ -63,7 +63,11 @@
 			cell-index = <0>;
 			compatible = "qcom,mdss-fb";
 			qcom,memory-reservation-type = "EBI1";
-			qcom,memory-reservation-size = <0x800000>;
+/* OPPO 2014-02-12 yxq modified begin for Find7S */
+			/* qcom,memory-reservation-size = <0x800000>; */
+			qcom,memory-reservation-size = <0x2a30000>;
+			qcom,mdss-fb-split-find7s =<720 720>;
+/* OPPO 2014-02-12 yxq modified end */
 			qcom,memblock-reserve = <0x03200000 0x01E00000>;
 		};
 
@@ -144,6 +148,17 @@
 		vdda-supply = <&pm8941_l2>;
 		qcom,mdss-fb-map = <&mdss_fb0>;
 		qcom,mdss-mdp = <&mdss_mdp>;
+		qcom,platform-reset-gpio = <&pm8941_gpios 19 0>;
+		qcom,platform-enable-gpio = <&msmgpio 58 0>;
+		qcom,platform-te-gpio = <&msmgpio 12 0>;
+		qcom,platform-strength-ctrl = [ff 06];
+		qcom,platform-bist-ctrl = [00 00 b1 ff 00 00];
+		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];
+		qcom,platform-lane-config = [00 00 00 00 00 00 00 01 97
+			00 00 00 00 05 00 00 01 97
+			00 00 00 00 0a 00 00 01 97
+			00 00 00 00 0f 00 00 01 97
+			00 c0 00 00 00 00 00 01 bb];
 	};
 
 	mdss_hdmi_tx: qcom,hdmi_tx@fd922100 {
@@ -187,6 +202,7 @@
 		reg-names = "edp_base", "mmss_cc_base";
 		vdda-supply = <&pm8941_l12>;
 		gpio-panel-en = <&msmgpio 58 0>;
+		status = "disable";
 		qcom,mdss-fb-map = <&mdss_fb0>;
 		gpio-panel-hpd = <&msmgpio 102 0>;
 	};
