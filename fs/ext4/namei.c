@@ -36,6 +36,10 @@
 #include <linux/bio.h>
 #include "ext4.h"
 #include "ext4_jbd2.h"
+#ifdef VENDOR_EDIT 
+//Zhilong.Zhang@OnlineRd.Driver, 2014/03/07, Add for support ignore case, so the CTS can pass
+#include <linux/ctype.h>
+#endif /* VENDOR_EDIT */
 
 #include "xattr.h"
 #include "acl.h"
@@ -247,6 +251,22 @@ static inline unsigned dx_node_limit(struct inode *dir)
 	unsigned entry_space = dir->i_sb->s_blocksize - EXT4_DIR_REC_LEN(0);
 	return entry_space / sizeof(struct dx_entry);
 }
+
+#ifdef VENDOR_EDIT 
+//Zhilong.Zhang@OnlineRd.Driver, 2014/03/07, Add for support ignore case, so the CTS can pass
+int memcmp_ignore_case(const unsigned char* cs,const unsigned char* ct,int len)
+{
+	const unsigned char* ax = cs;
+	const unsigned char* bx = ct;
+	
+	int i;
+	for(i=0;i<len;i++){
+		if(toupper(*ax)!=toupper(*bx)) return 1;
+		ax++;bx++;
+	}
+	return 0;
+}
+#endif /* VENDOR_EDIT */
 
 /*
  * Debug
@@ -794,7 +814,16 @@ static inline int ext4_match (int len, const char * const name,
 		return 0;
 	if (!de->inode)
 		return 0;
+#ifndef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/03/07, Add for support ignore case, so the CTS can pass
 	return !memcmp(name, de->name, len);
+#else /* VENDOR_EDIT */
+#ifndef CONGIF_OPPO_CTS_OPTR
+	return !memcmp(name, de->name, len);
+#else
+	return !memcmp_ignore_case(name, de->name, len);
+#endif
+#endif /* VENDOR_EDIT */
 }
 
 /*
@@ -1756,6 +1785,10 @@ retry:
 		ext4_handle_sync(handle);
 
 	inode = ext4_new_inode(handle, dir, mode, &dentry->d_name, 0, NULL);
+#ifdef VENDOR_EDIT
+//Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
+        ext4_fill_inode(dir->i_sb, inode);
+#endif /* VENDOR_EDIT */
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		inode->i_op = &ext4_file_inode_operations;
@@ -1832,6 +1865,10 @@ retry:
 
 	inode = ext4_new_inode(handle, dir, S_IFDIR | mode,
 			       &dentry->d_name, 0, NULL);
+#ifdef VENDOR_EDIT
+//Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
+        ext4_fill_inode(dir->i_sb, inode);
+#endif /* VENDOR_EDIT */
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_stop;
