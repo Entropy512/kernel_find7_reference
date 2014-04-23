@@ -27,6 +27,12 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 
+/* OPPO 2013-12-18 yingpiao.lin modify begin for bug gpio-standby is none */
+#ifdef CONFIG_VENDOR_EDIT
+#define UNDEFINE_GPIO 0XFFFF
+#endif
+/* OPPO 2013-12-18 yingpiao.lin Add modify end */
+
 static int32_t msm_sensor_enable_i2c_mux(struct msm_camera_i2c_conf *i2c_conf)
 {
 	struct v4l2_subdev *i2c_mux_sd =
@@ -306,9 +312,16 @@ static int32_t msm_sensor_get_dt_vreg_data(struct device_node *of_node,
 		CDBG("%s cam_vreg[%d].type = %d\n", __func__, i,
 			sensordata->cam_vreg[i].type);
 	}
-
+	#ifdef CONFIG_VENDOR_EDIT
+	// lingjianing 2014-3-5 modify for 14001 camera AVDD and DVDD
+       #ifdef CONFIG_OPPO_DEVICE_FIND7OP
+	 rc = of_property_read_u32_array(of_node, "qcom,cam-vreg-min-find7op-voltage",
+		vreg_array, count);
+	 #else
 	rc = of_property_read_u32_array(of_node, "qcom,cam-vreg-min-voltage",
 		vreg_array, count);
+	 #endif
+	  #endif
 	if (rc < 0) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		goto ERROR2;
@@ -318,9 +331,16 @@ static int32_t msm_sensor_get_dt_vreg_data(struct device_node *of_node,
 		CDBG("%s cam_vreg[%d].min_voltage = %d\n", __func__,
 			i, sensordata->cam_vreg[i].min_voltage);
 	}
-
+	#ifdef CONFIG_VENDOR_EDIT
+	// lingjianing 2014-3-5 modify for 14001 camera AVDD and DVDD
+        #ifdef CONFIG_OPPO_DEVICE_FIND7OP
+	rc = of_property_read_u32_array(of_node, "qcom,cam-vreg-max-find7op-voltage",
+		vreg_array, count);
+	#else
 	rc = of_property_read_u32_array(of_node, "qcom,cam-vreg-max-voltage",
 		vreg_array, count);
+	#endif
+	#endif
 	if (rc < 0) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		goto ERROR2;
@@ -568,6 +588,13 @@ int32_t msm_sensor_init_gpio_pin_tbl(struct device_node *of_node,
 			gpio_array[val];
 		CDBG("%s qcom,gpio-reset %d\n", __func__,
 			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_STANDBY]);
+/* OPPO 2013-12-18 yingpiao.lin modify begin for bug gpio-standby is none */
+#ifdef CONFIG_VENDOR_EDIT
+    } else {
+			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_STANDBY] =
+				UNDEFINE_GPIO;
+#endif
+/* OPPO 2013-12-18 yingpiao.lin Add modify end */
 	}
 
 	rc = of_property_read_u32(of_node, "qcom,gpio-vio", &val);
@@ -1022,6 +1049,13 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 					SENSOR_GPIO_MAX);
 				goto power_up_failed;
 			}
+/* OPPO 2013-12-18 yingpiao.lin modify begin for bug gpio-standby is none */
+#ifdef CONFIG_VENDOR_EDIT
+			if (data->gpio_conf->gpio_num_info->gpio_num
+				[power_setting->seq_val] == UNDEFINE_GPIO)
+				continue;
+#endif
+/* OPPO 2013-12-18 yingpiao.lin Add modify end */
 			pr_debug("%s:%d gpio set val %d\n", __func__, __LINE__,
 				data->gpio_conf->gpio_num_info->gpio_num
 				[power_setting->seq_val]);
@@ -1099,6 +1133,13 @@ power_up_failed:
 				0);
 			break;
 		case SENSOR_GPIO:
+/* OPPO 2013-12-18 yingpiao.lin modify begin for bug gpio-standby is none */
+#ifdef CONFIG_VENDOR_EDIT
+			if (data->gpio_conf->gpio_num_info->gpio_num
+				[power_setting->seq_val] == UNDEFINE_GPIO)
+				continue;
+#endif
+/* OPPO 2013-12-18 yingpiao.lin Add modify end */
 			gpio_set_value_cansleep(
 				data->gpio_conf->gpio_num_info->gpio_num
 				[power_setting->seq_val], GPIOF_OUT_INIT_LOW);
@@ -1167,6 +1208,13 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 					SENSOR_GPIO_MAX);
 				continue;
 			}
+/* OPPO 2013-12-18 yingpiao.lin modify begin for bug gpio-standby is none */
+#ifdef CONFIG_VENDOR_EDIT
+			if (data->gpio_conf->gpio_num_info->gpio_num
+				[power_setting->seq_val] == UNDEFINE_GPIO)
+				continue;
+#endif
+/* OPPO 2013-12-18 yingpiao.lin Add modify end */
 			gpio_set_value_cansleep(
 				data->gpio_conf->gpio_num_info->gpio_num
 				[power_setting->seq_val], GPIOF_OUT_INIT_LOW);
@@ -1248,6 +1296,28 @@ static void msm_sensor_stop_stream(struct msm_sensor_ctrl_t *s_ctrl)
 	return;
 }
 
+/* OPPO 2013-12-26 zhuosj Add begin for at test */
+#ifdef CONFIG_VENDOR_EDIT
+static void at_msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
+{
+	pr_err("%s cmd is 0 \n", __func__);
+	if (msm_sensor_power_down(s_ctrl)< 0) {
+		pr_err("%s:%d error \n", __func__,__LINE__);
+		return;
+	}
+	return;
+}
+static void at_msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
+{
+	pr_err("%s cmd is 1 \n", __func__);
+	if (msm_sensor_power_up(s_ctrl)< 0) {
+		pr_err("%s:%d error \n", __func__,__LINE__);
+		return;
+	}
+	return;
+}
+#endif
+/* OPPO 2013-12-26 zhuosj Add end */
 static int msm_sensor_get_af_status(struct msm_sensor_ctrl_t *s_ctrl,
 			void __user *argp)
 {
@@ -1266,6 +1336,17 @@ static long msm_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 		pr_err("%s s_ctrl NULL\n", __func__);
 		return -EBADF;
 	}
+/* OPPO 2013-12-26 zhuosj Add begin for at test */
+#ifdef CONFIG_VENDOR_EDIT
+	if (cmd == 0 && arg == NULL) {
+		at_msm_sensor_power_down(s_ctrl);
+		return 0;
+	} else if (cmd ==1 && arg == NULL) {
+		at_msm_sensor_power_up(s_ctrl);
+		return 0;
+	}
+#endif
+/* OPPO 2013-12-26 zhuosj Add end */
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_CFG:
 		return s_ctrl->func_tbl->sensor_config(s_ctrl, argp);
