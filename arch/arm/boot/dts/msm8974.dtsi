@@ -1134,7 +1134,10 @@
 		compatible = "qcom,msm-pcm-dsp";
 		qcom,msm-pcm-dsp-id = <1>;
 		qcom,msm-pcm-low-latency;
+/*#ifdef CONFIG_VENDOR_EDIT*/
+/* liuyan@Onlinerd.driver, 2014/03/25  Add for qccom lowtency 24bit patch */
 		qcom,latency-level = "regular";
+/*#endif*/ /*CONFIG_VENDOR_EDIT*/
 	};
 
 	qcom,msm-pcm-routing {
