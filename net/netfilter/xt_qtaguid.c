@@ -276,12 +276,18 @@ static struct tag_node *tag_node_tree_search(struct rb_root *root, tag_t tag)
 	while (node) {
 		struct tag_node *data = rb_entry(node, struct tag_node, node);
 		int result;
-		RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
-			 " node=%p data=%p\n", tag, node, data);
+	     #ifdef VENDOR_EDIT
+	    //qiulei, 2014/04/28, Remove useless log
+		//RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
+		//	 " node=%p data=%p\n", tag, node, data);
+		#endif /* VENDOR_EDIT */
 		result = tag_compare(tag, data->tag);
-		RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
-			 " data.tag=0x%llx (uid=%u) res=%d\n",
-			 tag, data->tag, get_uid_from_tag(data->tag), result);
+		#ifdef VENDOR_EDIT
+	    //qiulei, 2014/04/28, Remove useless log
+		//RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
+		//	 " data.tag=0x%llx (uid=%u) res=%d\n",
+		//	 tag, data->tag, get_uid_from_tag(data->tag), result);
+		#endif /* VENDOR_EDIT */
 		if (result < 0)
 			node = node->rb_left;
 		else if (result > 0)
@@ -2085,9 +2091,12 @@ static int ctrl_cmd_delete(const char *input)
 	if (argc < 3) {
 		uid = current_fsuid();
 	} else if (!can_impersonate_uid(uid)) {
-		pr_info("qtaguid: ctrl_delete(%s): "
-			"insufficient priv from pid=%u tgid=%u uid=%u\n",
-			input, current->pid, current->tgid, current_fsuid());
+	   #ifdef VENDOR_EDIT
+	    //qiulei, 2014/04/28, Remove for useless log
+		//pr_info("qtaguid: ctrl_delete(%s): "
+		//	"insufficient priv from pid=%u tgid=%u uid=%u\n",
+		//	input, current->pid, current->tgid, current_fsuid());
+		#endif /* VENDOR_EDIT */
 		res = -EPERM;
 		goto err;
 	}
@@ -2236,9 +2245,12 @@ static int ctrl_cmd_counter_set(const char *input)
 		goto err;
 	}
 	if (!can_manipulate_uids()) {
-		pr_info("qtaguid: ctrl_counterset(%s): "
-			"insufficient priv from pid=%u tgid=%u uid=%u\n",
-			input, current->pid, current->tgid, current_fsuid());
+	    #ifdef VENDOR_EDIT
+	    //qiulei, 2014/04/28, Remove for useless log
+		//pr_info("qtaguid: ctrl_counterset(%s): "
+		//	"insufficient priv from pid=%u tgid=%u uid=%u\n",
+		//	input, current->pid, current->tgid, current_fsuid());
+		#endif /* VENDOR_EDIT */
 		res = -EPERM;
 		goto err;
 	}
@@ -2323,9 +2335,12 @@ static int ctrl_cmd_tag(const char *input)
 	if (argc < 4) {
 		uid = current_fsuid();
 	} else if (!can_impersonate_uid(uid)) {
-		pr_info("qtaguid: ctrl_tag(%s): "
-			"insufficient priv from pid=%u tgid=%u uid=%u\n",
-			input, current->pid, current->tgid, current_fsuid());
+		#ifdef VENDOR_EDIT
+	    //qiulei, 2014/04/28, Remove for useless log
+		//pr_info("qtaguid: ctrl_tag(%s): "
+		//	"insufficient priv from pid=%u tgid=%u uid=%u\n",
+		//	input, current->pid, current->tgid, current_fsuid());
+		#endif /* VENDOR_EDIT */
 		res = -EPERM;
 		goto err_put;
 	}
