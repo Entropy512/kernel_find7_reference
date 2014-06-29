@@ -1189,7 +1189,8 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 /* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 		if (perf_mode) {
 #else
-		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE) {
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE||
+		    perf_mode == LOW_LATENCY_PCM_MODE) {
 #endif /*CONFIG_VENDOR_EDIT*/
 			open.topology_id = NULL_COPP_TOPOLOGY;
 			rate = ULL_SUPPORTED_SAMPLE_RATE;
@@ -1455,7 +1456,7 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 /* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
 	if (!perf_mode) {
 		for (i = 0; i < num_copps; i++)
-			send_adm_cal(port_id[i], path);
+			send_adm_cal(port_id[i], path, perf_mode);
 
 		for (i = 0; i < num_copps; i++) {
 			int tmp;
@@ -1473,7 +1474,7 @@ int adm_matrix_map(int session_id, int path, int num_copps,
 		}
 	}
 #else
-	if (perf_mode != ULTRA_LOW_LATENCY_PCM_MODE) {
+	if (!perf_mode) {
 		for (i = 0; i < num_copps; i++)
 			send_adm_cal(port_id[i], path, perf_mode);
 
@@ -1814,7 +1815,8 @@ int adm_close(int port_id, int perf_mode)
 				RESET_COPP_ID);
 		}
 #else
-		if (perf_mode) {
+		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
+				perf_mode == LOW_LATENCY_PCM_MODE) {
 			copp_id = atomic_read(
 				&this_adm.copp_low_latency_id[index]);
 			pr_debug("%s:coppid %d portid=%#x index=%d coppcnt=%d\n",
@@ -1854,18 +1856,18 @@ int adm_close(int port_id, int perf_mode)
 			goto fail_cmd;
 		}
 	}
-
 #ifndef CONFIG_VENDOR_EDIT
-/* liuyan@Onlinerd.driver, 2014/03/17  Add for qcoom lowlatency 24bit patch */
-		if (perf_mode == ULTRA_LOW_LATENCY_PCM_MODE ||
-				perf_mode == LOW_LATENCY_PCM_MODE) {
+/* liuyan@Onlinerd.driver, 2014/03/17  Add for qccom lowlatency 24bit patch */
+	if (!perf_mode) {
 		pr_debug("%s: remove adm device from rtac\n", __func__);
 		rtac_remove_adm_device(port_id);
 	}
 #else
-	pr_debug("%s: remove adm device from rtac\n", __func__);
-	rtac_remove_adm_device(port_id, copp_id);
-#endif /*CONFIG_VENDOR_EDIT*/
+	if (!perf_mode) {
+		pr_debug("%s: remove adm device from rtac\n", __func__);
+		rtac_remove_adm_device(port_id, copp_id);
+	}
+#endif
 
 fail_cmd:
 	return ret;

@@ -461,7 +461,7 @@ void rtac_remove_adm_device(u32 port_id, u32 copp_id)
 #endif /*CONFIG_VENDOR_EDIT*/
 {
 	s32 i;
-	pr_debug("%s: port_id = %d\n", __func__, port_id);
+	pr_debug("%s: port_id = %d copp_id=%d\n", __func__, port_id,copp_id);
 
 	mutex_lock(&rtac_adm_mutex);
 	/* look for device */

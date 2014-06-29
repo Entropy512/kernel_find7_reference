@@ -363,8 +363,14 @@ static int msm_voice_gain_put(struct snd_kcontrol *kcontrol,
 		goto done;
 	}
 
+#ifdef CONFIG_VENDOR_EDIT
+/* liuyan@Onlinerd.driver, 2014/04/14  Add for phone call set volume log */
+	pr_err("%s: volume: %d session_id: %#x ramp_duration: %d\n", __func__,
+		volume, session_id, ramp_duration);
+#else
 	pr_debug("%s: volume: %d session_id: %#x ramp_duration: %d\n", __func__,
 		volume, session_id, ramp_duration);
+#endif /*CONFIG_VENDOR_EDIT*/
 
 	voc_set_rx_vol_step(session_id, RX_PATH, volume, ramp_duration);
 

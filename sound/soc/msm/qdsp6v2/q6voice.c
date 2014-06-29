@@ -1,4 +1,4 @@
-/*  Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/*  Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,9 +28,9 @@
 #include "audio_acdb.h"
 #include "q6voice.h"
 
-
-#define TIMEOUT_MS 200
-
+/*hanqing.wang@EXP.Driver.Audio,modified for qualcomm patch 591065 to fix voice single-pass  2014-05-23*/
+#define TIMEOUT_MS 300 /*qualcomm original code :#define TIMEOUT_MS 200*/
+/*hanqing.wang@EXP.Driver.Audio,modified for qualcomm patch 591065 to fix voice single-pass  2014-05-23*/
 
 #define CMD_STATUS_SUCCESS 0
 #define CMD_STATUS_FAIL 1
