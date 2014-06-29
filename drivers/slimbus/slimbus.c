@@ -288,15 +288,25 @@ static struct device_type slim_dev_type = {
 
 static void slim_report(struct work_struct *work)
 {
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete begin for slimbus error when powerup */
+#if 0
 	u8 laddr;
 	int ret, i;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete end */
 	struct slim_driver *sbdrv;
 	struct slim_device *sbdev =
 			container_of(work, struct slim_device, wd);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete begin for slimbus error when powerup phone */
+#if 0
 	struct slim_controller *ctrl = sbdev->ctrl;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete end */
 	if (!sbdev->dev.driver)
 		return;
 	/* check if device-up or down needs to be called */
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete begin for slimbus error when powerup phone */
+#ifndef VENDOR_EDIT
 	mutex_lock(&ctrl->m_ctrl);
 	/* address no longer valid, means device reported absent */
 	for (i = 0; i < ctrl->num_dev; i++) {
@@ -306,17 +316,40 @@ static void slim_report(struct work_struct *work)
 			break;
 	}
 	mutex_unlock(&ctrl->m_ctrl);
+#else
+    if ((!sbdev->reported && !sbdev->notified) ||
+        (sbdev->reported && sbdev->notified))
+    return;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Delete end */
+
 	sbdrv = to_slim_driver(sbdev->dev.driver);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when powerup */
+#ifndef VENDOR_EDIT
 	if (i < ctrl->num_dev) {
+#else
+    /*
+        * address no longer valid, means device reported absent, whereas
+        *  address valid, means device reported present
+     */
+    if (sbdev->notified && !sbdev->reported) {
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		sbdev->notified = false;
 		if (sbdrv->device_down)
 			sbdrv->device_down(sbdev);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when powerup */
+#ifndef VENDOR_EDIT
 		return;
 	}
 	if (sbdev->notified)
 		return;
 	ret = slim_get_logical_addr(sbdev, sbdev->e_addr, 6, &laddr);
 	if (!ret) {
+#else
+	} else if (!sbdev->notified && sbdev->reported) {
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		if (sbdrv)
 			sbdev->notified = true;
 		if (sbdrv->device_up)
@@ -636,6 +669,11 @@ void slim_report_absent(struct slim_device *sbdev)
 	if (!sbdev)
 		return;
 	ctrl = sbdev->ctrl;
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add begin for slimbus error when powerup */
+#ifdef VENDOR_EDIT
+    sbdev->reported = false;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add end */
 	if (!ctrl)
 		return;
 	/* invalidate logical addresses */
@@ -773,6 +811,12 @@ int slim_assign_laddr(struct slim_controller *ctrl, const u8 *e_addr,
 	u8 i = 0;
 	bool exists = false;
 	struct slim_device *sbdev;
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add begin for slimbus error when powerup */
+#ifdef VENDOR_EDIT
+    struct list_head *pos, *next;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add end */
+
 	mutex_lock(&ctrl->m_ctrl);
 	/* already assigned */
 	if (ctrl_getlogical_addr(ctrl, e_addr, e_len, &i) == 0) {
@@ -822,10 +866,22 @@ ret_assigned_laddr:
 	pr_info("slimbus:%d laddr:0x%x, EAPC:0x%x:0x%x", ctrl->nr, *laddr,
 				e_addr[1], e_addr[2]);
 	mutex_lock(&ctrl->m_ctrl);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when powerup */
+#ifndef VENDOR_EDIT
 	list_for_each_entry(sbdev, &ctrl->devs, dev_list) {
+#else
+	list_for_each_safe(pos, next, &ctrl->devs) {
+	    sbdev = list_entry(pos, struct slim_device, dev_list);
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		if (memcmp(sbdev->e_addr, e_addr, 6) == 0) {
 			struct slim_driver *sbdrv;
 			sbdev->laddr = *laddr;
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add begin for slimbus error when powerup */
+#ifdef VENDOR_EDIT
+            sbdev->reported = true;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add end */
 			if (sbdev->dev.driver) {
 				sbdrv = to_slim_driver(sbdev->dev.driver);
 				if (sbdrv->device_up)

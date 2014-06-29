@@ -99,12 +99,28 @@ static irqreturn_t ngd_slim_interrupt(int irq, void *d)
 	u32 stat = readl_relaxed(ngd + NGD_INT_STAT);
 	u32 pstat;
 
+/* OPPO 2014-03-26 Zhaoan.Xu@PhoneSW.Driver Modify begin for sound card can't register */
+#ifndef VENDOR_EDIT
 	if (stat & NGD_INT_TX_MSG_SENT) {
 		writel_relaxed(NGD_INT_TX_MSG_SENT, ngd + NGD_INT_CLR);
 		/* Make sure interrupt is cleared */
+#else
+    if ((stat & NGD_INT_MSG_BUF_CONTE) ||
+        (stat & NGD_INT_MSG_TX_INVAL) || (stat & NGD_INT_DEV_ERR) ||
+        (stat & NGD_INT_TX_NACKED_2)) {
+        writel_relaxed(stat, ngd + NGD_INT_CLR);
+        dev->err = -EIO;
+
+        dev_err(dev->dev, "NGD interrupt error:0x%x, err:%d", stat,
+        					dev->err);
+        /* Guarantee that error interrupts are cleared */
+#endif
+/* OPPO 2014-03-26 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		mb();
 		if (dev->wr_comp)
 			complete(dev->wr_comp);
+/* OPPO 2014-03-26 Zhaoan.Xu@PhoneSW.Driver Modify begin for sound card not registered */
+#ifndef VENDOR_EDIT
 	} else if ((stat & NGD_INT_MSG_BUF_CONTE) ||
 		(stat & NGD_INT_MSG_TX_INVAL) || (stat & NGD_INT_DEV_ERR) ||
 		(stat & NGD_INT_TX_NACKED_2)) {
@@ -118,6 +134,15 @@ static irqreturn_t ngd_slim_interrupt(int irq, void *d)
 		if (dev->wr_comp)
 			complete(dev->wr_comp);
 		}
+#else
+	} else if (stat & NGD_INT_TX_MSG_SENT) {
+    	writel_relaxed(NGD_INT_TX_MSG_SENT, ngd + NGD_INT_CLR);
+    	/* Make sure interrupt is cleared */
+    	mb();
+    	if (dev->wr_comp)
+    		complete(dev->wr_comp);
+#endif
+/* OPPO 2014-03-26 Zhaoan.Xu@PhoneSW.Driver Modify end */
 	}
 	if (stat & NGD_INT_RX_MSG_RCVD) {
 		u32 rx_buf[10];
@@ -496,9 +521,17 @@ static int ngd_xferandwait_ack(struct slim_controller *ctrl,
 		else
 			ret = txn->ec;
 	}
-	if (ret) {
+	if (ret) {  
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when power up phone */
+#ifndef VENDOR_EDIT
 		pr_err("master msg:0x%x,tid:%d ret:%d", txn->mc,
 				txn->tid, ret);
+#else
+        if (ret != -EREMOTEIO || txn->mc != SLIM_USR_MC_CHAN_CTRL) {
+            pr_err("master msg:0x%x,tid:%d ret:%d", txn->mc, txn->tid, ret);
+        }
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		mutex_lock(&ctrl->m_ctrl);
 		ctrl->txnt[txn->tid] = NULL;
 		mutex_unlock(&ctrl->m_ctrl);
@@ -623,7 +656,16 @@ static int ngd_allocbw(struct slim_device *sb, int *subfrmc, int *clkgear)
 		txn.mc = SLIM_USR_MC_CHAN_CTRL;
 		txn.rl = txn.len + 4;
 		ret = ngd_xferandwait_ack(ctrl, &txn);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when powerup */
+#ifndef VENDOR_EDIT
 		if (ret)
+#else
+        /* HW restarting, channel removal should succeed */
+        if (ret == -EREMOTEIO)
+            return 0;
+        else if (ret)
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 			return ret;
 
 		txn.mc = SLIM_USR_MC_RECONFIG_NOW;
@@ -980,10 +1022,26 @@ static void ngd_laddr_lookup(struct work_struct *work)
 		container_of(work, struct msm_slim_ctrl, slave_notify);
 	struct slim_controller *ctrl = &dev->ctrl;
 	struct slim_device *sbdev;
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add begin for slimbus error when powerup */
+#ifdef VENDOR_EDIT
+    struct list_head *pos, *next;
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add end */
 	int i;
 	mutex_lock(&ctrl->m_ctrl);
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify begin for slimbus error when powerup */
+#ifndef VENDOR_EDIT
 	list_for_each_entry(sbdev, &ctrl->devs, dev_list) {
+#else
+	list_for_each_safe(pos, next, &ctrl->devs) {
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Modify end */
 		int ret = 0;
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add begin for slimbus error when powerup */
+#ifdef VENDOR_EDIT
+        sbdev = list_entry(pos, struct slim_device, dev_list);
+#endif
+/* OPPO 2014-05-09 Zhaoan.Xu@PhoneSW.Driver Add end */
 		mutex_unlock(&ctrl->m_ctrl);
 		for (i = 0; i < LADDR_RETRY; i++) {
 			ret = slim_get_logical_addr(sbdev, sbdev->e_addr,
