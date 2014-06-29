@@ -179,7 +179,6 @@ INT32 ffsMountVol(struct super_block *sb, INT32 drv)
 	if (p_bd->sector_size > sb->s_blocksize)
 		sb_set_blocksize(sb, p_bd->sector_size);
 
-	printk("[EXFAT] sector_read  1111...\n");
 	if (sector_read(sb, 0, &tmp_bh, 1) != FFS_SUCCESS)
 		return FFS_MEDIAERR;
 
@@ -596,6 +595,8 @@ INT32 ffsWriteFile(struct inode *inode, FILE_ID_T *fid, void *buffer, UINT64 cou
 			num_alloced = p_fs->fs_func->alloc_cluster(sb, num_alloc, &new_clu);
 			if (num_alloced == 0)
 				break;
+			else if (num_alloced < 0)
+				return FFS_MEDIAERR;
 
 			if (last_clu == CLUSTER_32(~0)) {
 				if (new_clu.flags == 0x01)
@@ -1303,7 +1304,9 @@ INT32 ffsMapCluster(struct inode *inode, INT32 clu_offset, UINT32 *clu)
 		new_clu.flags = fid->flags;
 
 		num_alloced = p_fs->fs_func->alloc_cluster(sb, 1, &new_clu);
-		if (num_alloced < 1)
+		if (num_alloced < 0)
+			return FFS_MEDIAERR;
+		else if (num_alloced == 0)
 			return FFS_FULL;
 
 		if (last_clu == CLUSTER_32(~0)) {
@@ -1745,16 +1748,19 @@ INT32 fat_alloc_cluster(struct super_block *sb, INT32 num_alloc, CHAIN_T *p_chai
 
 	for (i = 2; i < p_fs->num_clusters; i++) {
 		if (FAT_read(sb, new_clu, &read_clu) != 0)
-			return 0;
+			return -1;
 
 		if (read_clu == CLUSTER_32(0)) {
-			FAT_write(sb, new_clu, CLUSTER_32(~0));
+			if(FAT_write(sb, new_clu, CLUSTER_32(~0)) < 0)
+				return -1;
 			num_clusters++;
 
 			if (p_chain->dir == CLUSTER_32(~0))
 				p_chain->dir = new_clu;
-			else
-				FAT_write(sb, last_clu, new_clu);
+			else {
+				if(FAT_write(sb, last_clu, new_clu) < 0)
+					return -1;
+			}
 
 			last_clu = new_clu;
 
@@ -1806,18 +1812,22 @@ INT32 exfat_alloc_cluster(struct super_block *sb, INT32 num_alloc, CHAIN_T *p_ch
 		}
 
 		if (set_alloc_bitmap(sb, new_clu-2) != FFS_SUCCESS)
-			return 0;
+			return -1;
 
 		num_clusters++;
 
-		if (p_chain->flags == 0x01)
-			FAT_write(sb, new_clu, CLUSTER_32(~0));
+		if (p_chain->flags == 0x01) {
+			if(FAT_write(sb, new_clu, CLUSTER_32(~0)) < 0)
+				return -1;
+		}
 
 		if (p_chain->dir == CLUSTER_32(~0)) {
 			p_chain->dir = new_clu;
 		} else {
-			if (p_chain->flags == 0x01)
-				FAT_write(sb, last_clu, new_clu);
+			if (p_chain->flags == 0x01) {
+				if(FAT_write(sb, last_clu, new_clu) < 0)
+					return -1;
+			}
 		}
 		last_clu = new_clu;
 
@@ -1880,7 +1890,8 @@ void fat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, INT32 do_relse)
 		if (FAT_read(sb, clu, &clu) == -1)
 			break;
 
-		FAT_write(sb, prev, CLUSTER_32(0));
+		if (FAT_write(sb, prev, CLUSTER_32(0)) < 0)
+			break;
 		num_clusters++;
 
 	} while (clu != CLUSTER_32(~0));
@@ -2040,7 +2051,8 @@ void exfat_chain_cont_cluster(struct super_block *sb, UINT32 chain, INT32 len)
 		return;
 
 	while (len > 1) {
-		FAT_write(sb, chain, chain+1);
+		if (FAT_write(sb, chain, chain+1) < 0)
+			break;
 		chain++;
 		len--;
 	}
@@ -2090,7 +2102,6 @@ INT32 load_alloc_bitmap(struct super_block *sb)
 
 				for (j = 0; j < p_fs->map_sectors; j++) {
 					p_fs->vol_amap[j] = NULL;
-//					printk("[EXFAT] sector_read  10101010...\n");
 					ret = sector_read(sb, sector+j, &(p_fs->vol_amap[j]), 1);
 					if (ret != FFS_SUCCESS) {
 						i=0;
@@ -2258,7 +2269,6 @@ INT32 __load_upcase_table(struct super_block *sb, UINT32 sector, UINT32 num_sect
 	num_sectors += sector;
 
 	while(sector < num_sectors) {
-//		printk("[EXFAT] sector_read  aaaaaa...\n");
 		ret = sector_read(sb, sector, &tmp_bh, 1);
 		if (ret != FFS_SUCCESS) {
 			PRINTK("sector read (0x%X)fail\n", sector);
@@ -3108,7 +3118,7 @@ INT32 find_location(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, UINT32 
 DENTRY_T *get_entry_with_sector(struct super_block *sb, UINT32 sector, INT32 offset)
 {
 	UINT8 *buf;
-	printk("[EXFAT] get_entry_with_sector  ......\n");
+
 	buf = buf_getblk(sb, sector);
 
 	if (buf == NULL)
@@ -3125,7 +3135,7 @@ DENTRY_T *get_entry_in_dir(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, 
 
 	if (find_location(sb, p_dir, entry, &sec, &off) != FFS_SUCCESS)
 		return NULL;
-//	printk("[EXFAT] get_entry_in_dir  ......\n");
+
 	buf = buf_getblk(sb, sec);
 
 	if (buf == NULL)
@@ -3168,6 +3178,7 @@ ENTRY_SET_CACHE_T *get_entry_set_in_dir (struct super_block *sb, CHAIN_T *p_dir,
 	off = byte_offset & p_bd->sector_size_mask;  
 	sec = byte_offset >> p_bd->sector_size_bits; 
 	sec += START_SECTOR(clu);
+
 	buf = buf_getblk(sb, sec);
 	if (buf == NULL)
 		goto err_out;
@@ -3258,7 +3269,6 @@ ENTRY_SET_CACHE_T *get_entry_set_in_dir (struct super_block *sb, CHAIN_T *p_dir,
 			} else {
 				sec++;
 			}
-
 			buf = buf_getblk(sb, sec);
 			if (buf == NULL)
 				goto err_out;
@@ -3308,7 +3318,6 @@ static INT32 __write_partial_entries_in_entry_set (struct super_block *sb, ENTRY
 	while(num_entries) {
 		remaining_byte_in_sector = (1 << p_bd->sector_size_bits) - off;
 		copy_entries = MIN(remaining_byte_in_sector>> DENTRY_SIZE_BITS , num_entries);
-		printk("[EXFAT] __write_partial_entries_in_entry_set  ......\n");
 		buf = buf_getblk(sb, sec);
 		if (buf == NULL)
 			goto err_out;
@@ -3511,7 +3520,8 @@ INT32 find_empty_entry(struct inode *inode, CHAIN_T *p_dir, INT32 num_entries)
 			p_fs->hint_uentry.clu.flags = 0x01;
 		}
 		if (clu.flags == 0x01)
-			FAT_write(sb, last_clu, clu.dir);
+			if(FAT_write(sb, last_clu, clu.dir) < 0)
+				return -1;
 
 		if (p_fs->hint_uentry.entry == -1) {
 			p_fs->hint_uentry.dir = p_dir->dir;
@@ -4550,9 +4560,11 @@ INT32 create_dir(struct inode *inode, CHAIN_T *p_dir, UNI_NAME_T *p_uniname, FIL
 	clu.flags = (p_fs->vol_type == EXFAT) ? 0x03 : 0x01;
 
 	ret = p_fs->fs_func->alloc_cluster(sb, 1, &clu);
-	if (ret < 1)
+	if (ret < 0)
+		return FFS_MEDIAERR;
+	else if(ret == 0)
 		return FFS_FULL;
-
+	
 	ret = clear_cluster(sb, clu.dir);
 	if (ret != FFS_SUCCESS)
 		return ret;
@@ -4868,7 +4880,7 @@ INT32 sector_read(struct super_block *sb, UINT32 sec, struct buffer_head **bh, I
 	FS_INFO_T *p_fs = &(EXFAT_SB(sb)->fs_info);
 
 	if ((sec >= (p_fs->PBR_sector+p_fs->num_sectors)) && (p_fs->num_sectors > 0)) {
-		PRINT("[EXFAT] sector_read: out of range error! (sec = %d), (p_fs->PBR_sector+p_fs->num_sectors)=%d\n", sec, p_fs->PBR_sector+p_fs->num_sectors);
+		PRINT("[EXFAT] sector_read: out of range error! (sec = %d)\n", sec);
 		fs_error(sb);
 		return ret;
 	}
