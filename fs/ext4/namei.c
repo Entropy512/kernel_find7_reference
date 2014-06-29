@@ -814,17 +814,21 @@ static inline int ext4_match (int len, const char * const name,
 		return 0;
 	if (!de->inode)
 		return 0;
-#ifndef VENDOR_EDIT
-//Zhilong.Zhang@OnlineRd.Driver, 2014/03/07, Add for support ignore case, so the CTS can pass
 	return !memcmp(name, de->name, len);
-#else /* VENDOR_EDIT */
-#ifndef CONGIF_OPPO_CTS_OPTR
-	return !memcmp(name, de->name, len);
-#else
-	return !memcmp_ignore_case(name, de->name, len);
-#endif
-#endif /* VENDOR_EDIT */
 }
+
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+static inline int ext4_match_ignore_case (int len, const char * const name,
+			      struct ext4_dir_entry_2 * de)
+{
+	if (len != de->name_len)
+		return 0;
+	if (!de->inode)
+		return 0;
+	return !memcmp_ignore_case(name, de->name, len);
+}
+#endif /* VENDOR_EDIT */
 
 /*
  * Returns 0 if not found, -1 on failure, and 1 on success
@@ -847,8 +851,15 @@ static inline int search_dirblock(struct buffer_head *bh,
 		/* this code is executed quadratically often */
 		/* do minimal checking `by hand' */
 
+#ifndef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
 		if ((char *) de + namelen <= dlimit &&
 		    ext4_match (namelen, name, de)) {
+#else /* VENDOR_EDIT */
+		if ((char *) de + namelen <= dlimit &&
+		    ((dir->i_ignore_case == 1) ? ext4_match_ignore_case(namelen, name, de): ext4_match(namelen, name, de))) {	
+
+#endif /* VENDOR_EDIT */
 			/* found a match - just to be sure, do a full check */
 			if (ext4_check_dir_entry(dir, NULL, de, bh, offset))
 				return -1;
@@ -1298,7 +1309,12 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 		while ((char *) de <= top) {
 			if (ext4_check_dir_entry(dir, NULL, de, bh, offset))
 				return -EIO;
+#ifndef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case			
 			if (ext4_match(namelen, name, de))
+#else /* VENDOR_EDIT */
+			if ( (dir->i_ignore_case == 1) ? ext4_match_ignore_case(namelen, name, de) : ext4_match(namelen, name, de))
+#endif /* VENDOR_EDIT */
 				return -EEXIST;
 			nlen = EXT4_DIR_REC_LEN(de->name_len);
 			rlen = ext4_rec_len_from_disk(de->rec_len, blocksize);

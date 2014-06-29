@@ -1164,6 +1164,10 @@ struct ext4_sb_info {
         unsigned short fs_fmask;
         unsigned short fs_dmask;
 #endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT 
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+		unsigned short s_ignore_case;
+#endif /* VENDOR_EDIT */
 	unsigned short s_mount_state;
 	unsigned short s_pad;
 	int s_addr_per_block_bits;
@@ -2387,6 +2391,12 @@ static inline void ext4_fill_inode(struct super_block *sb, struct inode *inode)
 	if (EXT4_SB(sb)->s_gid) {
 		inode->i_gid = EXT4_SB(sb)->s_gid;
 	}
+#ifdef VENDOR_EDIT 
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case	
+	if (EXT4_SB(sb)->s_ignore_case) {
+		inode->i_ignore_case = EXT4_SB(sb)->s_ignore_case;
+	}
+#endif /* VENDOR_EDIT */	
 	return;
 }
 #endif /* VENDOR_EDIT */

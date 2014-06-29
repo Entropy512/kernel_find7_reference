@@ -1188,7 +1188,11 @@ enum {
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 #ifdef VENDOR_EDIT
 //Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
-        Opt_uid, Opt_diskuid, Opt_gid, Opt_diskgid,Opt_fmask, Opt_dmask,
+	Opt_uid, Opt_diskuid, Opt_gid, Opt_diskgid,Opt_fmask, Opt_dmask,
+#endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	Opt_ignore_case,
 #endif /* VENDOR_EDIT */
 };
 
@@ -1270,12 +1274,16 @@ static const match_table_t tokens = {
 	{Opt_removed, "journal=%u"},	/* mount option from ext2/3 */
 #ifdef VENDOR_EDIT
 //Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
-        {Opt_uid, "uid=%u"},
-        {Opt_diskuid, "uid=%u:%u"},
-        {Opt_gid, "gid=%u"},
-        {Opt_diskgid, "gid=%u:%u"},
-        {Opt_dmask, "dmask=%o"},
-        {Opt_fmask, "fmask=%o"},
+	{Opt_uid, "uid=%u"},
+	{Opt_diskuid, "uid=%u:%u"},
+	{Opt_gid, "gid=%u"},
+	{Opt_diskgid, "gid=%u:%u"},
+	{Opt_dmask, "dmask=%o"},
+	{Opt_fmask, "fmask=%o"},
+#endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	{Opt_ignore_case, "ignore_case=%o"},
 #endif /* VENDOR_EDIT */
 	{Opt_err, NULL},
 };
@@ -1536,6 +1544,13 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
                 sbi->s_gid = sbi->s_diskgid = arg;
                 return 1;
 #endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	case Opt_ignore_case:
+		sbi->s_ignore_case = arg;
+		return 1;
+#endif /* VENDOR_EDIT */
+
 	}
 
 	for (m = ext4_mount_opts; m->token != Opt_err; m++) {
@@ -4255,13 +4270,18 @@ struct ext4_mount_options {
 	gid_t s_resgid;
 #ifdef VENDOR_EDIT
 //Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
-        uid_t s_uid;
-        uid_t s_diskuid;
-        gid_t s_gid;
-        gid_t s_diskgid;
-        unsigned short fs_fmask;
-        unsigned short fs_dmask;
+	uid_t s_uid;
+	uid_t s_diskuid;
+	gid_t s_gid;
+	gid_t s_diskgid;
+	unsigned short fs_fmask;
+	unsigned short fs_dmask;
 #endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	unsigned short s_ignore_case;	
+#endif /* VENDOR_EDIT */
+
 	unsigned long s_commit_interval;
 	u32 s_min_batch_time, s_max_batch_time;
 #ifdef CONFIG_QUOTA
@@ -4294,12 +4314,16 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	old_opts.s_resgid = sbi->s_resgid;
 #ifdef VENDOR_EDIT
 //Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
-        old_opts.s_uid = sbi->s_uid;
-        old_opts.s_diskuid = sbi->s_diskuid;
-        old_opts.s_gid = sbi->s_gid;
-        old_opts.s_diskgid = sbi->s_diskgid;
-        old_opts.fs_fmask = sbi->fs_fmask;
-        old_opts.fs_dmask = sbi->fs_dmask;
+	old_opts.s_uid = sbi->s_uid;
+	old_opts.s_diskuid = sbi->s_diskuid;
+	old_opts.s_gid = sbi->s_gid;
+	old_opts.s_diskgid = sbi->s_diskgid;
+	old_opts.fs_fmask = sbi->fs_fmask;
+	old_opts.fs_dmask = sbi->fs_dmask;
+#endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	old_opts.s_ignore_case = sbi->s_ignore_case;
 #endif /* VENDOR_EDIT */
 	old_opts.s_commit_interval = sbi->s_commit_interval;
 	old_opts.s_min_batch_time = sbi->s_min_batch_time;
@@ -4460,13 +4484,18 @@ restore_opts:
 	sbi->s_resgid = old_opts.s_resgid;
 #ifdef VENDOR_EDIT
 //Jianfeng.Qiu@OnlineRd.Driver, 2014/1/23, Add for support to set uid, gid, fmask, dmask
-        sbi->s_uid = old_opts.s_uid;
-        sbi->s_diskuid = old_opts.s_diskuid;
-        sbi->s_gid = old_opts.s_gid;
-        sbi->s_diskgid = old_opts.s_diskgid;
-        sbi->fs_fmask = old_opts.fs_fmask;
-        sbi->fs_dmask = old_opts.fs_dmask;
+	sbi->s_uid = old_opts.s_uid;
+	sbi->s_diskuid = old_opts.s_diskuid;
+	sbi->s_gid = old_opts.s_gid;
+	sbi->s_diskgid = old_opts.s_diskgid;
+	sbi->fs_fmask = old_opts.fs_fmask;
+	sbi->fs_dmask = old_opts.fs_dmask;
 #endif /* VENDOR_EDIT */
+#ifdef VENDOR_EDIT
+//Zhilong.Zhang@OnlineRd.Driver, 2014/06/04, Add for ignore case
+	sbi->s_ignore_case = old_opts.s_ignore_case;
+#endif /* VENDOR_EDIT */
+
 	sbi->s_commit_interval = old_opts.s_commit_interval;
 	sbi->s_min_batch_time = old_opts.s_min_batch_time;
 	sbi->s_max_batch_time = old_opts.s_max_batch_time;
