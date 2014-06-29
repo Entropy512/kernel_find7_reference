@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,11 @@
 
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
+
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/04/11  Add for blue screen before recovery mode */
+#include <linux/boot_mode.h>
+#endif /*VENDOR_EDIT*/
 
 /* OPPO 2014-02-11 yxq add begin for Find7S */
 #include <linux/pcb_version.h>
@@ -121,10 +126,23 @@ static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
 	}
 
 	*ab_quota = MDSS_MDP_BUS_FUDGE_FACTOR_AB(*ab_quota);
+#ifndef VENDOR_EDIT
+/* Xinqin.Yang@PhoneSW.Driver, 2014/05/04  Modify for enlarging ib to avoid slow animation */
 	if (npipe > 1)
 		*ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(*ib_quota);
 	else
 		*ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_IB(*ib_quota);
+#else /*VENDOR_EDIT*/
+	if (npipe > 1) {
+        if (get_pcb_version() < 20) { /* For 13077 */
+		    *ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(*ib_quota);
+        } else { /* For 13097 */
+            *ib_quota = (*ib_quota) * 3;
+        }
+	} else {
+		*ib_quota = MDSS_MDP_BUS_FUDGE_FACTOR_IB(*ib_quota);
+	}
+#endif /*VENDOR_EDIT*/
 
 	if (ovrd && (*ib_quota < MDSS_MDP_BUS_FLOOR_BW)) {
 		*ib_quota = MDSS_MDP_BUS_FLOOR_BW;
@@ -141,13 +159,6 @@ static int mdss_mdp_ctl_perf_commit(struct mdss_data_type *mdata, u32 flags)
 	int cnum;
 	unsigned long clk_rate = 0;
 	u64 bus_ab_quota = 0, bus_ib_quota = 0;	
-#ifdef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/02/11  Add for Find7S */
-    if (get_pcb_version() >= HW_VERSION__20) {
-	    bus_ab_quota = 3000000000UL;
-	    bus_ib_quota = 3000000000UL;
-    }
-#endif /*CONFIG_VENDOR_EDIT*/
 
 	if (!flags) {
 		pr_err("nothing to update\n");
@@ -172,29 +183,13 @@ static int mdss_mdp_ctl_perf_commit(struct mdss_data_type *mdata, u32 flags)
 		bus_ab_quota <<= MDSS_MDP_BUS_FACTOR_SHIFT;
 		mdss_mdp_bus_scale_set_quota(bus_ab_quota, bus_ib_quota);
 	}
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/02/11  Modify for Find7S */
+
 	if (flags & MDSS_MDP_PERF_UPDATE_CLK) {
 		clk_rate = MDSS_MDP_CLK_FUDGE_FACTOR(clk_rate);
 		pr_debug("update clk rate = %lu HZ\n", clk_rate);
 		mdss_mdp_set_clk_rate(clk_rate);
 	}
-#else /*CONFIG_VENDOR_EDIT*/
-	if (get_pcb_version() < HW_VERSION__20) { /* For Find7 */
-        if (flags & MDSS_MDP_PERF_UPDATE_CLK) {
-            clk_rate = MDSS_MDP_CLK_FUDGE_FACTOR(clk_rate);
-            pr_debug("update clk rate = %lu HZ\n", clk_rate);
-            mdss_mdp_set_clk_rate(clk_rate);
-        }
-	} else { /* For Find7s */
-		if (flags & MDSS_MDP_PERF_UPDATE_CLK) {
-			pr_err("update clk rate = %lu HZ\n", clk_rate);
-			//mdss_mdp_set_clk_rate(clk_rate);
-			mdss_mdp_set_clk_rate(320000000);
-			mdss_mdp_set_clk_rate(clk_rate);
-		}
-	}
-#endif /*CONFIG_VENDOR_EDIT*/
+
 	mutex_unlock(&mdss_mdp_ctl_lock);
 
 	return 0;
@@ -640,27 +635,21 @@ int mdss_mdp_wb_mixer_destroy(struct mdss_mdp_mixer *mixer)
 	return 0;
 }
 
-#ifdef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/02/26  Add for continous display */
 static inline struct mdss_mdp_ctl *mdss_mdp_get_split_ctl(
-       struct mdss_mdp_ctl *ctl)
+		struct mdss_mdp_ctl *ctl)
 {
-    if (ctl && ctl->mixer_right && (ctl->mixer_right->ctl != ctl))
-        return ctl->mixer_right->ctl;
+	if (ctl && ctl->mixer_right && (ctl->mixer_right->ctl != ctl))
+		return ctl->mixer_right->ctl;
 
-    return NULL;
+	return NULL;
 }
-
-#endif /*CONFIG_VENDOR_EDIT*/
 
 int mdss_mdp_ctl_splash_finish(struct mdss_mdp_ctl *ctl, bool handoff)
 {
-#ifdef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/02/26  Add for continous display */
-    struct mdss_mdp_ctl *sctl = mdss_mdp_get_split_ctl(ctl);
-    if (sctl)
-        sctl->panel_data->panel_info.cont_splash_enabled = 0;
-#endif /*CONFIG_VENDOR_EDIT*/
+	struct mdss_mdp_ctl *sctl = mdss_mdp_get_split_ctl(ctl);
+	if (sctl)
+		sctl->panel_data->panel_info.cont_splash_enabled = 0;
+
 	switch (ctl->panel_data->panel_info.type) {
 	case MIPI_VIDEO_PANEL:
 		return mdss_mdp_video_reconfigure_splash_done(ctl, handoff);
@@ -683,18 +672,6 @@ static inline int mdss_mdp_set_split_ctl(struct mdss_mdp_ctl *ctl,
 
 	return 0;
 }
-
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/02/26  Delete for continous display */
-static inline struct mdss_mdp_ctl *mdss_mdp_get_split_ctl(
-		struct mdss_mdp_ctl *ctl)
-{
-	if (ctl && ctl->mixer_right && (ctl->mixer_right->ctl != ctl))
-		return ctl->mixer_right->ctl;
-
-	return NULL;
-}
-#endif /*CONFIG_VENDOR_EDIT*/
 
 static int mdss_mdp_ctl_fbc_enable(int enable,
 		struct mdss_mdp_mixer *mixer, struct mdss_panel_info *pdata)
@@ -880,6 +857,11 @@ static int mdss_mdp_ctl_setup_wfd(struct mdss_mdp_ctl *ctl)
 	return 0;
 }
 
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/04/15  Add for find7s swap DSI port */
+extern int LCD_id;
+#endif /*VENDOR_EDIT*/
+
 struct mdss_mdp_ctl *mdss_mdp_ctl_init(struct mdss_panel_data *pdata,
 				       struct msm_fb_data_type *mfd)
 {
@@ -906,10 +888,25 @@ struct mdss_mdp_ctl *mdss_mdp_ctl_init(struct mdss_panel_data *pdata,
 		break;
 	case MIPI_VIDEO_PANEL:
 		ctl->is_video_mode = true;
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/04/15  Modify for find7s swap DSI port */
 		if (pdata->panel_info.pdest == DISPLAY_1)
 			ctl->intf_num = MDSS_MDP_INTF1;
 		else
 			ctl->intf_num = MDSS_MDP_INTF2;
+#else /*VENDOR_EDIT*/
+		if(get_pcb_version()>=22 || LCD_id == 4){
+			if (pdata->panel_info.pdest == DISPLAY_1)
+				ctl->intf_num = MDSS_MDP_INTF2;
+			else
+				ctl->intf_num = MDSS_MDP_INTF1;
+		}else{
+			if (pdata->panel_info.pdest == DISPLAY_1)
+				ctl->intf_num = MDSS_MDP_INTF1;
+			else
+				ctl->intf_num = MDSS_MDP_INTF2;
+		}
+#endif /*VENDOR_EDIT*/
 		ctl->intf_type = MDSS_INTF_DSI;
 		ctl->opmode = MDSS_MDP_CTL_OP_VIDEO_MODE;
 		ctl->start_fnc = mdss_mdp_video_start;

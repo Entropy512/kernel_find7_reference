@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -182,6 +182,7 @@ static irqreturn_t mdp3_irq_handler(int irq, void *ptr)
 	int i = 0;
 	struct mdp3_hw_resource *mdata = (struct mdp3_hw_resource *)ptr;
 	u32 mdp_interrupt = 0;
+	u32 mdp_status = 0;
 
 	spin_lock(&mdata->irq_lock);
 	if (!mdata->irq_mask)
@@ -190,8 +191,8 @@ static irqreturn_t mdp3_irq_handler(int irq, void *ptr)
 	clk_enable(mdp3_res->clocks[MDP3_CLK_AHB]);
 	clk_enable(mdp3_res->clocks[MDP3_CLK_CORE]);
 
-	mdp_interrupt = MDP3_REG_READ(MDP3_REG_INTR_STATUS);
-	MDP3_REG_WRITE(MDP3_REG_INTR_CLEAR, mdp_interrupt);
+	mdp_status = MDP3_REG_READ(MDP3_REG_INTR_STATUS);
+	mdp_interrupt = mdp_status;
 	pr_debug("mdp3_irq_handler irq=%d\n", mdp_interrupt);
 
 	mdp_interrupt &= mdata->irq_mask;
@@ -202,6 +203,7 @@ static irqreturn_t mdp3_irq_handler(int irq, void *ptr)
 		mdp_interrupt = mdp_interrupt >> 1;
 		i++;
 	}
+	MDP3_REG_WRITE(MDP3_REG_INTR_CLEAR, mdp_status);
 
 	clk_disable(mdp3_res->clocks[MDP3_CLK_AHB]);
 	clk_disable(mdp3_res->clocks[MDP3_CLK_CORE]);
@@ -622,6 +624,27 @@ void mdp3_clk_unprepare(void)
 	mutex_unlock(&mdp3_res->res_mutex);
 }
 
+int mdp3_get_mdp_dsi_clk(void)
+{
+	int rc;
+
+	mutex_lock(&mdp3_res->res_mutex);
+	clk_prepare(mdp3_res->clocks[MDP3_CLK_DSI]);
+	rc = mdp3_clk_update(MDP3_CLK_DSI, 1);
+	mutex_unlock(&mdp3_res->res_mutex);
+	return rc;
+}
+
+int mdp3_put_mdp_dsi_clk(void)
+{
+	int rc;
+	mutex_lock(&mdp3_res->res_mutex);
+	rc = mdp3_clk_update(MDP3_CLK_DSI, 0);
+	clk_unprepare(mdp3_res->clocks[MDP3_CLK_DSI]);
+	mutex_unlock(&mdp3_res->res_mutex);
+	return rc;
+}
+
 static int mdp3_irq_setup(void)
 {
 	int ret;
@@ -924,7 +947,7 @@ static int mdp3_get_pan_cfg(struct mdss_panel_cfg *pan_cfg)
 {
 	char *t = NULL;
 	char pan_intf_str[MDSS_MAX_PANEL_LEN];
-	int rc, i;
+	int rc, i, panel_len;
 	char pan_name[MDSS_MAX_PANEL_LEN];
 
 	if (!pan_cfg)
@@ -961,6 +984,14 @@ static int mdp3_get_pan_cfg(struct mdss_panel_cfg *pan_cfg)
 	strlcpy(&pan_cfg->arg_cfg[0], t, sizeof(pan_cfg->arg_cfg));
 	pr_debug("%s:%d: t=[%s] panel name=[%s]\n", __func__, __LINE__,
 		t, pan_cfg->arg_cfg);
+
+	panel_len = strlen(pan_cfg->arg_cfg);
+	if (!panel_len) {
+		pr_err("%s: Panel name is invalid\n", __func__);
+		pan_cfg->pan_intf = MDSS_PANEL_INTF_INVALID;
+		return -EINVAL;
+	}
+
 	rc = mdp3_get_pan_intf(pan_intf_str);
 	pan_cfg->pan_intf = (rc < 0) ?  MDSS_PANEL_INTF_INVALID : rc;
 	return 0;
@@ -1044,10 +1075,10 @@ static int mdp3_parse_bootarg(struct platform_device *pdev)
 	of_node_put(chosen_node);
 
 	rc = mdp3_get_pan_cfg(pan_cfg);
-	if (!rc)
+	if (!rc) {
 		pan_cfg->init_done = true;
-
-	return rc;
+		return rc;
+	}
 
 get_dt_pan:
 	rc = mdp3_parse_dt_pan_intf(pdev);
@@ -1414,7 +1445,9 @@ int mdp3_self_map_iommu(struct ion_client *client, struct ion_handle *handle,
 			ret = 0;
 		} else {
 			ret = PTR_ERR(iommu_meta);
-			goto out_unlock;
+			mutex_unlock(&mdp3_res->iommu_lock);
+			pr_err("%s: meta_create failed err=%d", __func__, ret);
+			return ret;
 		}
 	} else {
 		if (iommu_meta->flags != iommu_flags) {
@@ -1840,6 +1873,9 @@ static int mdp3_continuous_splash_on(struct mdss_panel_data *pdata)
 	pr_debug("mdp3__continuous_splash_on\n");
 
 	mdp3_clk_set_rate(MDP3_CLK_VSYNC, MDP_VSYNC_CLK_RATE,
+			MDP3_CLIENT_DMA_P);
+
+	mdp3_clk_set_rate(MDP3_CLK_CORE, MDP_CORE_CLK_RATE,
 			MDP3_CLIENT_DMA_P);
 
 	rc = mdp3_clk_prepare();

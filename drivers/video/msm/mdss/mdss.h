@@ -89,6 +89,7 @@ struct mdss_data_type {
 	u8 has_wfd_blk;
 	u8 has_wb_ad;
 
+	u32 rotator_ot_limit;
 	u32 mdp_irq_mask;
 	u32 mdp_hist_irq_mask;
 
@@ -130,8 +131,10 @@ struct mdss_data_type {
 	u32 nintf;
 
 	u32 pp_bus_hdl;
+	struct mdss_mdp_ad *ad_off;
 	struct mdss_ad_info *ad_cfgs;
 	u32 nad_cfgs;
+	u32 nmax_concurrent_ad_hw;
 	struct workqueue_struct *ad_calc_wq;
 
 	struct ion_client *iclient;

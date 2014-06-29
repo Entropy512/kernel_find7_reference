@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -283,16 +283,11 @@ static int __mdss_mdp_overlay_setup_scaling(struct mdss_mdp_pipe *pipe)
 
 	src = pipe->src.w >> pipe->horz_deci;
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if (pipe->scale.enable_pxl_ext)
 		return 0;
 	memset(&pipe->scale, 0, sizeof(struct mdp_scale_data));
 	rc = mdss_mdp_calc_phase_step(src, pipe->dst.w,
 			&pipe->scale.phase_step_x[0]);
-#else /*CONFIG_VENDOR_EDIT*/
-	rc = mdss_mdp_calc_phase_step(src, pipe->dst.w, &pipe->phase_step_x);
-#endif /*CONFIG_VENDOR_EDIT*/
 	if (rc) {
 		pr_err("Horizontal scaling calculation failed=%d! %d->%d\n",
 				rc, src, pipe->dst.w);
@@ -300,30 +295,20 @@ static int __mdss_mdp_overlay_setup_scaling(struct mdss_mdp_pipe *pipe)
 	}
 
 	src = pipe->src.h >> pipe->vert_deci;
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	rc = mdss_mdp_calc_phase_step(src, pipe->dst.h,
 			&pipe->scale.phase_step_y[0]);
-#else /*CONFIG_VENDOR_EDIT*/
-	rc = mdss_mdp_calc_phase_step(src, pipe->dst.h, &pipe->phase_step_y);
-#endif /*CONFIG_VENDOR_EDIT*/
 	if (rc) {
 		pr_err("Vertical scaling calculation failed=%d! %d->%d\n",
 				rc, src, pipe->dst.h);
 		return rc;
 	}
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	pipe->scale.init_phase_x[0] = (pipe->scale.phase_step_x[0] -
 					(1 << PHASE_STEP_SHIFT)) / 2;
 	pipe->scale.init_phase_y[0] = (pipe->scale.phase_step_y[0] -
 					(1 << PHASE_STEP_SHIFT)) / 2;
-#endif /*CONFIG_VENDOR_EDIT*/
 	return 0;
 }
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 static inline void __mdss_mdp_overlay_set_chroma_sample(
 	struct mdss_mdp_pipe *pipe)
 {
@@ -346,7 +331,6 @@ static inline void __mdss_mdp_overlay_set_chroma_sample(
 	if (pipe->vert_deci)
 		pipe->chroma_sample_v = 0;
 }
-#endif /*CONFIG_VENDOR_EDIT*/
 
 static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 				       struct mdp_overlay *req,
@@ -491,15 +475,9 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	pipe->horz_deci = req->horz_deci;
 	pipe->vert_deci = req->vert_deci;
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	memcpy(&pipe->scale, &req->scale, sizeof(struct mdp_scale_data));
-#endif /*CONFIG_VENDOR_EDIT*/
 	pipe->src_fmt = fmt;
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	__mdss_mdp_overlay_set_chroma_sample(pipe);
-#endif /*CONFIG_VENDOR_EDIT*/
 
 	pipe->mixer_stage = req->z_order;
 	pipe->is_fg = req->is_fg;
@@ -515,13 +493,8 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		pr_debug("Unintended blend_op %d on layer with no alpha plane\n",
 			pipe->blend_op);
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if (fmt->is_yuv && !(pipe->flags & MDP_SOURCE_ROTATED_90) &&
 			!pipe->scale.enable_pxl_ext) {
-#else /*CONFIG_VENDOR_EDIT*/
-	if (fmt->is_yuv && !(pipe->flags & MDP_SOURCE_ROTATED_90)) {
-#endif /*CONFIG_VENDOR_EDIT*/
 		pipe->overfetch_disable = OVERFETCH_DISABLE_BOTTOM;
 
 		if (!(pipe->flags & MDSS_MDP_DUAL_PIPE) ||
@@ -531,11 +504,7 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	} else {
 		pipe->overfetch_disable = 0;
 	}
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/16  Delete for a green line lied at the right of weather screen  */
-	pipe->overfetch_disable = fmt->is_yuv &&
-			!(pipe->flags & MDP_SOURCE_ROTATED_90);
-#endif /*CONFIG_VENDOR_EDIT*/
+
 	pipe->bg_color = req->bg_color;
 
 	req->id = pipe->ndx;
@@ -593,12 +562,7 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		}
 	}
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Modify for delete scale patch */
 	if ((pipe->flags & MDP_DEINTERLACE) && !pipe->scale.enable_pxl_ext) {
-#else /*CONFIG_VENDOR_EDIT*/
-	if (pipe->flags & MDP_DEINTERLACE) {
-#endif /*CONFIG_VENDOR_EDIT*/
 		if (pipe->flags & MDP_SOURCE_ROTATED_90) {
 			pipe->src.x = DIV_ROUND_UP(pipe->src.x, 2);
 			pipe->src.x &= ~1;
@@ -625,15 +589,6 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 		!mdp5_data->mdata->has_wfd_blk)
 		mdss_mdp_smp_release(pipe);
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
-	/*
-	 * Clear previous SMP reservations and reserve according to the
-	 * latest configuration
-	 */
-	mdss_mdp_smp_unreserve(pipe);
-#endif /*CONFIG_VENDOR_EDIT*/
-
 	ret = mdss_mdp_smp_reserve(pipe);
 	if (ret) {
 		pr_debug("mdss_mdp_smp_reserve failed. ret=%d\n", ret);
@@ -641,7 +596,6 @@ static int mdss_mdp_overlay_pipe_setup(struct msm_fb_data_type *mfd,
 	}
 
 	pipe->params_changed++;
-	pipe->has_buf = 0;
 
 	req->vert_deci = pipe->vert_deci;
 
@@ -1289,6 +1243,9 @@ static int mdss_mdp_overlay_queue(struct msm_fb_data_type *mfd,
 
 	pr_debug("ov queue pnum=%d\n", pipe->num);
 
+	if (pipe->flags & MDP_SOLID_FILL)
+		pr_warn("Unexpected buffer queue to a solid fill pipe\n");
+
 	flags = (pipe->flags & MDP_SECURE_OVERLAY_SESSION);
 	flags |= (pipe->flags & MDP_SECURE_DISPLAY_OVERLAY_SESSION);
 
@@ -1303,7 +1260,6 @@ static int mdss_mdp_overlay_queue(struct msm_fb_data_type *mfd,
 	if (IS_ERR_VALUE(ret)) {
 		pr_err("src_data pmem error\n");
 	}
-	pipe->has_buf = 1;
 	mdss_mdp_pipe_unmap(pipe);
 
 	return ret;
@@ -1546,7 +1502,6 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 	buf->p[0].addr += offset;
 	buf->p[0].len = fbi->fix.smem_len - offset;
 	buf->num_planes = 1;
-	pipe->has_buf = 1;
 	mdss_mdp_pipe_unmap(pipe);
 
 	if (fbi->var.xres > MAX_MIXER_WIDTH || mfd->split_display) {
@@ -1561,7 +1516,6 @@ static void mdss_mdp_overlay_pan_display(struct msm_fb_data_type *mfd)
 			goto pan_display_error;
 		}
 		pipe->back_buf = *buf;
-		pipe->has_buf = 1;
 		mdss_mdp_pipe_unmap(pipe);
 	}
 	mutex_unlock(&mdp5_data->ov_lock);
@@ -1999,6 +1953,11 @@ static int mdss_mdp_pp_ioctl(struct msm_fb_data_type *mfd,
 					&copyback);
 		break;
 
+	case mdp_op_pa_v2_cfg:
+		ret = mdss_mdp_pa_v2_config(&mdp_pp.data.pa_v2_cfg_data,
+					&copyback);
+		break;
+
 	case mdp_op_pcc_cfg:
 		ret = mdss_mdp_pcc_config(&mdp_pp.data.pcc_cfg_data,
 					&copyback);
@@ -2187,6 +2146,10 @@ static int mdss_fb_get_hw_caps(struct msm_fb_data_type *mfd,
 		caps->features |= MDP_BWC_EN;
 	if (mdata->has_decimation)
 		caps->features |= MDP_DECIMATION_EN;
+
+	caps->max_smp_cnt = mdss_res->smp_mb_cnt;
+	caps->smp_per_pipe = mdata->smp_mb_per_pipe;
+
 	return 0;
 }
 

@@ -277,10 +277,17 @@ struct pp_hist_col_info {
 	spinlock_t hist_lock;
 };
 
-struct mdss_ad_info {
+struct mdss_mdp_ad {
 	char __iomem *base;
 	u8 num;
+};
+
+struct mdss_ad_info {
+	u8 num;
+	u8 calc_hw_num;
+	u32 ops;
 	u32 sts;
+	u32 reg_sts;
 	u32 state;
 	u32 ad_data;
 	u32 ad_data_mode;
@@ -294,6 +301,7 @@ struct mdss_ad_info {
 	struct completion comp;
 	u32 last_str;
 	u32 last_bl;
+	u32 bl_data;
 	u32 calc_itr;
 	uint32_t bl_bright_shift;
 	uint32_t bl_lin[AD_BL_LIN_LEN];
@@ -347,11 +355,6 @@ struct mdss_mdp_pipe {
 	u8 vert_deci;
 	struct mdss_mdp_img_rect src;
 	struct mdss_mdp_img_rect dst;
-#ifdef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Add for delete scale patch */
-    u32 phase_step_x;
-    u32 phase_step_y;
-#endif /*CONFIG_VENDOR_EDIT*/
 	struct mdss_mdp_format_params *src_fmt;
 	struct mdss_mdp_plane_sizes src_planes;
 
@@ -362,7 +365,6 @@ struct mdss_mdp_pipe {
 	u8 overfetch_disable;
 	u32 transp;
 	u32 bg_color;
-	u8 has_buf;
 
 	struct msm_fb_data_type *mfd;
 	struct mdss_mdp_mixer *mixer;
@@ -380,12 +382,9 @@ struct mdss_mdp_pipe {
 
 	struct mdp_overlay_pp_params pp_cfg;
 	struct mdss_pipe_pp_res pp_res;
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 	struct mdp_scale_data scale;
 	u8 chroma_sample_h;
 	u8 chroma_sample_v;
-#endif /*CONFIG_VENDOR_EDIT*/
 };
 
 struct mdss_mdp_writeback_arg {
@@ -556,6 +555,7 @@ int mdss_mdp_smp_setup(struct mdss_data_type *mdata, u32 cnt, u32 size);
 int mdss_hw_init(struct mdss_data_type *mdata);
 
 int mdss_mdp_pa_config(struct mdp_pa_cfg_data *config, u32 *copyback);
+int mdss_mdp_pa_v2_config(struct mdp_pa_v2_cfg_data *config, u32 *copyback);
 int mdss_mdp_pcc_config(struct mdp_pcc_cfg_data *cfg_ptr, u32 *copyback);
 int mdss_mdp_igc_lut_config(struct mdp_igc_lut_data *config, u32 *copyback,
 				u32 copy_from_kernel);
@@ -573,7 +573,7 @@ int mdss_mdp_ad_config(struct msm_fb_data_type *mfd,
 				struct mdss_ad_init_cfg *init_cfg);
 int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 				struct mdss_ad_input *input, int wait);
-int mdss_mdp_ad_addr_setup(struct mdss_data_type *mdata, u32 *ad_off);
+int mdss_mdp_ad_addr_setup(struct mdss_data_type *mdata, u32 *ad_offsets);
 int mdss_mdp_calib_mode(struct msm_fb_data_type *mfd,
 				struct mdss_calib_cfg *cfg);
 
@@ -645,10 +645,7 @@ int mdss_mdp_wb_set_format(struct msm_fb_data_type *mfd, int dst_format);
 int mdss_mdp_wb_get_format(struct msm_fb_data_type *mfd,
 					struct mdp_mixer_cfg *mixer_cfg);
 
-#ifndef CONFIG_VENDOR_EDIT
-/* Xinqin.Yang@PhoneSW.Driver, 2014/01/07  Delete for delete scale patch */
 int mdss_mdp_pipe_program_pixel_extn(struct mdss_mdp_pipe *pipe);
-#endif /*CONFIG_VENDOR_EDIT*/
 #define mfd_to_mdp5_data(mfd) (mfd->mdp.private1)
 #define mfd_to_mdata(mfd) (((struct mdss_overlay_private *)\
 				(mfd->mdp.private1))->mdata)
