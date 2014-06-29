@@ -923,8 +923,7 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 	else
 		led->flash_cfg->current_prgm =
 			(val * FLASH_MAX_LEVEL / led->max_current);
-         printk("qpnp_flash_set:val=%d,torch_enable=%d,current_prgm=%d,peripheral_subtype =%d\n",
-		 	val,led->flash_cfg->torch_enable,led->flash_cfg->current_prgm,led->flash_cfg->peripheral_subtype);
+
 	/* Set led current */
 	if (val > 0) {
 		if (led->flash_cfg->torch_enable) {
@@ -1225,7 +1224,7 @@ error_flash_set:
 }
 
 /*OPPO yuyi 2014-03-22 add begin for delay button_backlight*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef VENDOR_EDIT
 extern int button_backlight;
 #endif
 /*OPPO yuyi 2014-03-22 add end for delay button_backlight*/
@@ -1234,16 +1233,14 @@ static int qpnp_kpdbl_set(struct qpnp_led_data *led)
 {
 	int duty_us;
 	int rc;
-
 /*OPPO yuyi 2014-03-22 add begin for delay button_backlight*/
-#ifdef CONFIG_VENDOR_EDIT
+#ifdef VENDOR_EDIT
 	if(button_backlight == 1 ) {
 		msleep(600);
 		button_backlight ++;
 	}
 #endif
-/*OPPO yuyi 2014-03-22 add end for delay button_backlight*/
-
+/*OPPO yuyi 2014-03-22 add end for delay button_backlight*/	
 	if (led->cdev.brightness) {
 		if (!led->kpdbl_cfg->pwm_cfg->blinking)
 			led->kpdbl_cfg->pwm_cfg->mode =
@@ -1395,7 +1392,6 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 
 	led->cdev.brightness = value;
 	schedule_work(&led->work);
-	printk("qpnp_led_set:brightness=%d\n",led->cdev.brightness);
 }
 
 static void __qpnp_led_work(struct qpnp_led_data *led,
@@ -2286,7 +2282,7 @@ static ssize_t led_flash_blink_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(flash_blink, 0666, NULL, led_flash_blink_store);
+static DEVICE_ATTR(flash_blink, 0664, NULL, led_flash_blink_store);
 #endif
 /*Added by Jinshui.Liu@Camera 20140207 end*/
 static DEVICE_ATTR(led_mode, 0664, NULL, led_mode_store);
