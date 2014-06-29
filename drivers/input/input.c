@@ -593,6 +593,16 @@ static void input_dev_release_keys(struct input_dev *dev)
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for (code = 0; code <= KEY_MAX; code++) {
+
+#ifndef CONFIG_VENDOR_EDIT
+/*mingqiang.guo@phone.bsp  2014-5-14 delete for remove track gestures, reduce power consumption*/
+/* OPPO 2013-12-27 ranfei Add begin for do not report up when resume,delete for oneplus */
+#ifndef CONFIG_OPPO_DEVICE_FIND7OP
+			if(code == KEY_VOLUMEDOWN || code == KEY_VOLUMEUP)
+				continue;
+#endif /* CONFIG_OPPO_DEVICE_FIND7OP */
+#endif /* CONFIG_VENDOR_EDIT */
+
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
 				input_pass_event(dev, EV_KEY, code, 0);
